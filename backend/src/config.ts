@@ -23,9 +23,9 @@ export const config = {
     apiKey: required('OPENROUTER_API_KEY'),
     baseUrl: optional('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
     models: {
-      fast:  optional('OR_MODEL_FAST',  'google/gemini-2.5-flash'),
-      mid:   optional('OR_MODEL_MID',   'anthropic/claude-haiku-4.5'),
-      heavy: optional('OR_MODEL_HEAVY', 'anthropic/claude-sonnet-4.5'),
+      fast:  optional('OR_MODEL_FAST',  'deepseek/deepseek-chat'),
+      mid:   optional('OR_MODEL_MID',   'deepseek/deepseek-chat'),
+      heavy: optional('OR_MODEL_HEAVY', 'deepseek/deepseek-chat'),
     },
   },
 

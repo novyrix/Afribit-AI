@@ -8,14 +8,16 @@ import { TermsScreen } from './components/TermsScreen'
 import { AIPreferencesScreen } from './components/AIPreferencesScreen'
 import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
+import { WebLNConnect } from './components/WebLNConnect'
 import { HelpSheet } from './components/HelpSheet'
 import { MainScreen } from './components/MainScreen'
 import { BgCanvas } from './components/ui/BgCanvas'
 import { isStandalone } from './lib/pwa'
+import { isWeblnAvailable } from './lib/webln'
 
 type Phase =
   | 'launch' | 'install' | 'terms' | 'aiPrefs'
-  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'main'
+  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'main'
 
 const LANG_KEY = 'sats_lang'
 const PHASE_KEY = 'sats_phase'
@@ -31,6 +33,7 @@ export default function App() {
   const [helpFor, setHelpFor] = useState<'blink' | 'fedi' | null>(null)
   const [hasBlink, setHasBlink] = useState(false)
   const [hasFedi, setHasFedi] = useState(false)
+  const [weblnAvailable] = useState(isWeblnAvailable())
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -98,8 +101,10 @@ export default function App() {
             key="ecosystem"
             hasBlink={hasBlink}
             hasFedi={hasFedi}
+            weblnAvailable={weblnAvailable}
             onSelectBlink={() => go('connectBlink')}
             onSelectFedi={() => go('connectFedi')}
+            onSelectWebln={() => go('connectWebln')}
             onSkip={() => go('main')}
           />
         )}
@@ -121,6 +126,15 @@ export default function App() {
             onBack={() => go('ecosystem')}
             onHelp={() => setHelpFor('fedi')}
             onDone={() => { setHasFedi(true); go('main') }}
+          />
+        )}
+
+        {phase === 'connectWebln' && token && (
+          <WebLNConnect
+            key="webln"
+            token={token}
+            onBack={() => go('ecosystem')}
+            onDone={() => { go('main') }}
           />
         )}
 

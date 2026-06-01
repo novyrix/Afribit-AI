@@ -21,7 +21,7 @@ export type ChatReply = {
 
 export type WalletConnection = {
   id: string
-  walletType: 'blink' | 'fedi'
+  walletType: 'blink' | 'fedi' | 'webln'
   externalId: string | null
   nickname: string | null
   status: string
@@ -39,7 +39,7 @@ export type Transaction = {
   category: string
   memo: string | null
   occurredAt: string
-  wallet: { id: string; nickname: string | null; type: 'blink' | 'fedi' }
+  wallet: { id: string; nickname: string | null; type: 'blink' | 'fedi' | 'webln' }
 }
 
 export type Summary = {
@@ -120,6 +120,35 @@ export const api = {
       body: JSON.stringify({ federationId, inviteCode, nickname }),
     })
     return json<{ walletConnId: string; federationId: string }>(res)
+  },
+
+  async connectWebln(token: string, externalId: string | null, nickname?: string) {
+    const res = await fetch(`${API_URL}/wallets/webln`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ externalId, nickname }),
+    })
+    return json<{ walletConnId: string; externalId: string | null; nickname: string | null }>(res)
+  },
+
+  async pushWeblnTransactions(
+    token: string,
+    walletConnId: string,
+    transactions: Array<{
+      externalId: string
+      direction: 'in' | 'out'
+      amountSats: number
+      feeSats: number
+      memo: string | null
+      occurredAt: string
+    }>,
+  ) {
+    const res = await fetch(`${API_URL}/wallets/webln/${walletConnId}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ transactions }),
+    })
+    return json<{ pushed: number; inserted: number; skipped: number }>(res)
   },
 
   async getWalletBalance(token: string, walletConnId: string) {

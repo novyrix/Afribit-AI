@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo } from 'react'
-import { BitcoinMark, ChevronRight } from './ui/Icons'
+import { BitcoinMark, ChevronRight, Bolt } from './ui/Icons'
 
 type Status = 'connected' | 'available' | 'soon'
 
@@ -20,13 +20,15 @@ function polar(angleDeg: number) {
 }
 
 export function EcosystemScreen({
-  hasBlink, hasFedi,
-  onSelectBlink, onSelectFedi, onSkip,
+  hasBlink, hasFedi, weblnAvailable,
+  onSelectBlink, onSelectFedi, onSelectWebln, onSkip,
 }: {
   hasBlink?: boolean
   hasFedi?: boolean
+  weblnAvailable?: boolean
   onSelectBlink: () => void
   onSelectFedi: () => void
+  onSelectWebln: () => void
   onSkip: () => void
 }) {
   const services: Service[] = useMemo(() => [
@@ -163,6 +165,20 @@ export function EcosystemScreen({
       </div>
 
       <div className="pb-8 flex flex-col items-center gap-3">
+        {weblnAvailable && (
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, type: 'spring', damping: 20, stiffness: 220 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onSelectWebln}
+            className="glass-pill flex items-center gap-2 px-5 py-3"
+            style={{ border: '1px solid rgba(247,147,26,0.45)' }}
+          >
+            <Bolt size={16} className="text-bitcoin" />
+            <span className="font-ui text-14 text-white">Connect instantly</span>
+          </motion.button>
+        )}
         <button
           onClick={onSkip}
           className="font-ui text-14 text-white/45 hover:text-white/70 flex items-center gap-1"
