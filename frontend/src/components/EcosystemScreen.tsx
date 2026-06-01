@@ -114,9 +114,11 @@ export function EcosystemScreen({
                   disabled={soon}
                   className="absolute flex flex-col items-center gap-1.5"
                   style={{
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(calc(${p.x}px - 50%), calc(${p.y}px - 50%))`,
+                    left: 150 + p.x,
+                    top: 150 + p.y,
+                    width: 52,
+                    marginLeft: -26,
+                    marginTop: -26,
                   }}
                 >
                   <div

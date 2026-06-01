@@ -30,19 +30,19 @@ export function TermsScreen({ onContinue }: { onContinue: () => void }) {
       transition={SPRING}
       className="absolute inset-0 flex flex-col px-5"
     >
-      <div className="pt-[10vh] flex-shrink-0">
+      <div className="pt-12 flex-shrink-0">
         <div className="font-ui text-12 text-white/35 tracking-wider uppercase">
           Before we begin
         </div>
-        <h1 className="font-brand font-semibold text-28 text-white mt-3">
+        <h1 className="font-brand font-semibold text-28 text-white mt-2">
           Terms & privacy
         </h1>
-        <p className="font-ui text-15 text-white/55 mt-2 leading-relaxed">
+        <p className="font-ui text-14 text-white/55 mt-1.5 leading-relaxed">
           A quick summary of how Afribit SATS works and what it stores.
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto mt-5 flex flex-col gap-3 pb-2"
+      <div className="flex-1 overflow-y-auto mt-4 flex flex-col gap-3 pb-2"
            style={{ minHeight: 0 }}>
         <Accordion
           title="Terms of use"
@@ -67,7 +67,7 @@ export function TermsScreen({ onContinue }: { onContinue: () => void }) {
         </Accordion>
       </div>
 
-      <div className="flex-shrink-0 flex flex-col gap-3 pt-3">
+      <div className="flex-shrink-0 flex flex-col gap-2.5 pt-3 pb-5">
         <ConsentRow
           checked={consents.terms}
           onClick={() => toggle('terms')}
@@ -87,8 +87,8 @@ export function TermsScreen({ onContinue }: { onContinue: () => void }) {
         <button
           onClick={() => allChecked && onContinue()}
           disabled={!allChecked}
-          className="glass-pill h-14 w-full font-ui font-semibold text-16 text-white
-                     mt-1 mb-6 flex items-center justify-center gap-2 transition-opacity"
+          className="glass-pill h-13 w-full font-ui font-semibold text-16 text-white
+                     mt-1 flex items-center justify-center gap-2 transition-opacity"
           style={{
             background: 'rgba(247,147,26,0.18)',
             borderColor: 'rgba(247,147,26,0.55)',
