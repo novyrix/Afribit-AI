@@ -1,10 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { Menu } from './ui/Icons'
-import { Sidebar } from './main/Sidebar'
+import { Sidebar, type SidebarView } from './main/Sidebar'
 import { PortfolioCard } from './main/PortfolioCard'
 import { ToolStrip } from './main/ToolStrip'
 import { OrbBar, type ChatMessage } from './main/OrbBar'
+import { HistoryPage } from './pages/HistoryPage'
+import { AnalyticsPage } from './pages/AnalyticsPage'
+import { AccountPage } from './pages/AccountPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { SecurityPage } from './pages/SecurityPage'
 import { api, type WalletConnection } from '../lib/api'
 
 const SPRING = { type: 'spring' as const, damping: 22, stiffness: 220 }
@@ -22,11 +27,14 @@ export function MainScreen({
   onAddWallet: () => void
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [view, setView] = useState<SidebarView>('home')
   const [wallets, setWallets] = useState<WalletConnection[]>([])
   const [messages, setMessages] = useState<Msg[]>([])
   const [thinking, setThinking] = useState(false)
+  const [chatMode, setChatMode] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const orbZoneRef = useRef<HTMLDivElement>(null)
+  const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -57,11 +65,27 @@ export function MainScreen({
     return () => vv.removeEventListener('resize', onResize)
   }, [])
 
+  // 9-second inactivity returns to the dashboard
+  function bumpIdle() {
+    if (idleRef.current) clearTimeout(idleRef.current)
+    idleRef.current = setTimeout(() => setChatMode(false), 9000)
+  }
+  function enterChatMode() {
+    setChatMode(true)
+    bumpIdle()
+  }
+  function exitChatMode() {
+    if (idleRef.current) clearTimeout(idleRef.current)
+    setChatMode(false)
+  }
+  useEffect(() => () => { if (idleRef.current) clearTimeout(idleRef.current) }, [])
+
   function onIncoming(m: ChatMessage) {
     const id = genId()
     setMessages((prev) => [...prev, { ...m, id }])
     if (m.role === 'user') setThinking(true)
     else setThinking(false)
+    enterChatMode()
   }
 
   function onSendError() {
@@ -72,10 +96,26 @@ export function MainScreen({
     setMessages((prev) => prev.filter((m) => m.id !== id))
   }
 
+  function navigate(next: SidebarView) {
+    setView(next)
+    setSidebarOpen(false)
+    if (next === 'home') exitChatMode()
+  }
+
   const connectedIds = wallets.map((w) => w.walletType)
 
   return (
     <div className="app-root absolute inset-0 flex flex-col overflow-hidden">
+      <AnimatePresence mode="wait">
+        {view === 'history' && <HistoryPage key="history" token={token} onBack={() => navigate('home')} />}
+        {view === 'analytics' && <AnalyticsPage key="analytics" token={token} onBack={() => navigate('home')} />}
+        {view === 'account' && <AccountPage key="account" token={token} onBack={() => navigate('home')} />}
+        {view === 'settings' && <SettingsPage key="settings" onBack={() => navigate('home')} />}
+        {view === 'security' && <SecurityPage key="security" onBack={() => navigate('home')} />}
+      </AnimatePresence>
+
+      {view === 'home' && (
+        <>
       <header className="flex-shrink-0 flex items-center justify-between px-5 pt-10 pb-2">
         <motion.button
           onClick={() => setSidebarOpen(true)}
@@ -88,15 +128,45 @@ export function MainScreen({
         >
           <Menu size={22} />
         </motion.button>
-        <div />
+        <AnimatePresence>
+          {chatMode && (
+            <motion.button
+              key="exit-chat"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={exitChatMode}
+              className="w-9 h-9 rounded-full flex items-center justify-center
+                         text-white/60 hover:text-white bg-white/5 border border-white/10"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+              aria-label="Back to dashboard"
+            >
+              <span className="text-18 leading-none">×</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </header>
 
       <main
         ref={scrollRef}
+        onScroll={() => {
+          if (chatMode && scrollRef.current && scrollRef.current.scrollTop < 4) exitChatMode()
+        }}
         className="display-zone flex-1 overflow-y-auto overflow-x-hidden px-4 pb-3 flex flex-col gap-4"
         style={{ minHeight: 0, WebkitOverflowScrolling: 'touch' }}
       >
-        <PortfolioCard token={token} />
+        <motion.div
+          initial={false}
+          animate={{
+            height: chatMode ? 0 : 'auto',
+            opacity: chatMode ? 0 : 1,
+            marginBottom: chatMode ? -16 : 0,
+          }}
+          transition={SPRING}
+          style={{ overflow: 'hidden' }}
+        >
+          <PortfolioCard token={token} />
+        </motion.div>
 
         <AnimatePresence initial={false}>
           {messages.map((m) => (
@@ -156,14 +226,19 @@ export function MainScreen({
           thinking={thinking}
           onMessage={onIncoming}
           onError={onSendError}
+          onActivity={() => { if (chatMode) bumpIdle() }}
         />
       </div>
+        </>
+      )}
 
       <Sidebar
         token={token}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onAddWallet={onAddWallet}
+        currentView={view}
+        onNavigate={navigate}
       />
     </div>
   )

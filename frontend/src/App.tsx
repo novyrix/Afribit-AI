@@ -4,6 +4,8 @@ import { api, TOKEN_KEY, type Language } from './lib/api'
 import { LaunchScreen } from './components/LaunchScreen'
 import { InstallScreen } from './components/InstallScreen'
 import { EcosystemScreen } from './components/EcosystemScreen'
+import { TermsScreen } from './components/TermsScreen'
+import { AIPreferencesScreen } from './components/AIPreferencesScreen'
 import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
 import { HelpSheet } from './components/HelpSheet'
@@ -11,7 +13,9 @@ import { MainScreen } from './components/MainScreen'
 import { BgCanvas } from './components/ui/BgCanvas'
 import { isStandalone } from './lib/pwa'
 
-type Phase = 'launch' | 'install' | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'main'
+type Phase =
+  | 'launch' | 'install' | 'terms' | 'aiPrefs'
+  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'main'
 
 const LANG_KEY = 'sats_lang'
 const PHASE_KEY = 'sats_phase'
@@ -45,7 +49,7 @@ export default function App() {
       .then(({ wallets }) => {
         setHasBlink(wallets.some((w) => w.walletType === 'blink'))
         setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
-        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'ecosystem')) {
+        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms' || phase === 'aiPrefs' || phase === 'ecosystem')) {
           setPhase('main')
           localStorage.setItem(PHASE_KEY, 'main')
         }
@@ -73,12 +77,20 @@ export default function App() {
         {phase === 'launch' && (
           <LaunchScreen
             key="launch"
-            onContinue={() => go(isStandalone() ? 'ecosystem' : 'install')}
+            onContinue={() => go(isStandalone() ? 'terms' : 'install')}
           />
         )}
 
         {phase === 'install' && (
-          <InstallScreen key="install" onContinue={() => go('ecosystem')} />
+          <InstallScreen key="install" onContinue={() => go('terms')} />
+        )}
+
+        {phase === 'terms' && (
+          <TermsScreen key="terms" onContinue={() => go('aiPrefs')} />
+        )}
+
+        {phase === 'aiPrefs' && (
+          <AIPreferencesScreen key="aiPrefs" onContinue={() => go('ecosystem')} />
         )}
 
         {phase === 'ecosystem' && token && (

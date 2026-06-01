@@ -35,3 +35,46 @@ export function isIOSDevice(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) &&
     !(window as unknown as { MSStream?: unknown }).MSStream
 }
+
+export type Platform = {
+  isIOS: boolean
+  isAndroid: boolean
+  isStandalone: boolean
+  supportsBeforeInstallPrompt: boolean
+  isChromiumAndroid: boolean
+  isSamsungInternet: boolean
+  isSafariIOS: boolean
+  isChromeIOS: boolean
+  isDesktop: boolean
+}
+
+export function getPlatform(): Platform {
+  if (typeof navigator === 'undefined') {
+    return {
+      isIOS: false, isAndroid: false, isStandalone: false,
+      supportsBeforeInstallPrompt: false, isChromiumAndroid: false,
+      isSamsungInternet: false, isSafariIOS: false, isChromeIOS: false,
+      isDesktop: true,
+    }
+  }
+  const ua = navigator.userAgent
+  const isIOS = /iPad|iPhone|iPod/.test(ua) &&
+    !(window as unknown as { MSStream?: unknown }).MSStream
+  const isAndroid = /Android/.test(ua)
+  const isChromeIOS = isIOS && /CriOS/.test(ua)
+  const isSafariIOS = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)
+  const isSamsungInternet = isAndroid && /SamsungBrowser/.test(ua)
+  const isChromiumAndroid = isAndroid && /Chrome/.test(ua) && !isSamsungInternet
+  const supportsBeforeInstallPrompt = 'BeforeInstallPromptEvent' in window || isAndroid
+  return {
+    isIOS,
+    isAndroid,
+    isStandalone: isStandalone(),
+    supportsBeforeInstallPrompt,
+    isChromiumAndroid,
+    isSamsungInternet,
+    isSafariIOS,
+    isChromeIOS,
+    isDesktop: !isIOS && !isAndroid,
+  }
+}

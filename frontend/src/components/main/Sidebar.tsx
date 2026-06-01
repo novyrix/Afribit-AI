@@ -10,13 +10,17 @@ const SPRING = { type: 'spring' as const, damping: 26, stiffness: 280 }
 
 type WalletWithBalance = WalletConnection & { balanceSats?: number; loading?: boolean }
 
+export type SidebarView = 'home' | 'history' | 'analytics' | 'account' | 'settings' | 'security'
+
 export function Sidebar({
-  token, open, onClose, onAddWallet,
+  token, open, onClose, onAddWallet, currentView, onNavigate,
 }: {
   token: string
   open: boolean
   onClose: () => void
   onAddWallet: () => void
+  currentView: SidebarView
+  onNavigate: (view: SidebarView) => void
 }) {
   const [wallets, setWallets] = useState<WalletWithBalance[]>([])
 
@@ -115,17 +119,23 @@ export function Sidebar({
             <div className="h-px bg-white/10 my-5" />
 
             <nav className="flex flex-col gap-1">
-              <NavItem icon={<Home size={20} />} label="Home" active />
-              <NavItem icon={<Clock size={20} />} label="History" />
-              <NavItem icon={<ChartLine size={20} />} label="Analytics" />
+              <NavItem icon={<Home size={20} />} label="Home"
+                       active={currentView === 'home'} onClick={() => onNavigate('home')} />
+              <NavItem icon={<Clock size={20} />} label="History"
+                       active={currentView === 'history'} onClick={() => onNavigate('history')} />
+              <NavItem icon={<ChartLine size={20} />} label="Analytics"
+                       active={currentView === 'analytics'} onClick={() => onNavigate('analytics')} />
             </nav>
 
             <div className="flex-1" />
 
             <nav className="flex flex-col gap-1">
-              <NavItem icon={<User size={20} />} label="Account" />
-              <NavItem icon={<Settings size={20} />} label="Settings" />
-              <NavItem icon={<Shield size={20} />} label="Security" />
+              <NavItem icon={<User size={20} />} label="Account"
+                       active={currentView === 'account'} onClick={() => onNavigate('account')} />
+              <NavItem icon={<Settings size={20} />} label="Settings"
+                       active={currentView === 'settings'} onClick={() => onNavigate('settings')} />
+              <NavItem icon={<Shield size={20} />} label="Security"
+                       active={currentView === 'security'} onClick={() => onNavigate('security')} />
             </nav>
           </motion.aside>
         </>
@@ -134,10 +144,17 @@ export function Sidebar({
   )
 }
 
-function NavItem({ icon, label, active }: { icon: React.ReactNode; label: string; active?: boolean }) {
+function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <button className={`flex items-center gap-3 py-2.5 px-1 text-left rounded-glass transition-colors
-                       ${active ? 'text-white' : 'text-white/55 hover:text-white/80'}`}>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 py-2.5 px-2 -mx-1 text-left rounded-glass transition-colors
+                 ${active ? 'text-white' : 'text-white/55 hover:text-white/80'}`}
+      style={active ? {
+        background: 'rgba(247,147,26,0.07)',
+        borderLeft: '3px solid #F7931A',
+      } : { borderLeft: '3px solid transparent' }}
+    >
       <span className={active ? 'text-bitcoin' : ''}>{icon}</span>
       <span className="font-display text-15">{label}</span>
     </button>

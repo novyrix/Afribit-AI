@@ -4,8 +4,7 @@ import { ArrowUpRight, Plus, ChevronRight } from './ui/Icons'
 import {
   getDeferredInstallPrompt,
   clearDeferredInstallPrompt,
-  isStandalone,
-  isIOSDevice,
+  getPlatform,
 } from '../lib/pwa'
 
 const SPRING = { type: 'spring' as const, damping: 22, stiffness: 220 }
@@ -13,8 +12,8 @@ const SPRING = { type: 'spring' as const, damping: 22, stiffness: 220 }
 export function InstallScreen({ onContinue }: { onContinue: () => void }) {
   const [deferred, setDeferred] = useState(getDeferredInstallPrompt())
   const [installing, setInstalling] = useState(false)
-  const standalone = isStandalone()
-  const ios = isIOSDevice()
+  const platform = getPlatform()
+  const standalone = platform.isStandalone
 
   useEffect(() => {
     function onReady() { setDeferred(getDeferredInstallPrompt()) }
@@ -57,7 +56,7 @@ export function InstallScreen({ onContinue }: { onContinue: () => void }) {
     >
       <div className="pt-[14vh]">
         <div className="font-ui text-12 text-white/35 tracking-wider uppercase">
-          Step 1 of 2
+          Get the app
         </div>
         <h1 className="font-brand font-semibold text-28 text-white mt-3">
           Install Afribit SATS
@@ -74,10 +73,14 @@ export function InstallScreen({ onContinue }: { onContinue: () => void }) {
       </div>
 
       <div className="flex-1 flex flex-col justify-center mt-4">
-        {ios ? (
+        {platform.isChromeIOS ? (
+          <ChromeIosNotice />
+        ) : platform.isIOS ? (
           <IosInstructions />
         ) : deferred ? (
           <AndroidInstall onInstall={handleInstall} installing={installing} />
+        ) : platform.isAndroid ? (
+          <AndroidManual samsung={platform.isSamsungInternet} />
         ) : (
           <DesktopFallback />
         )}
@@ -143,6 +146,39 @@ function IosInstructions() {
         Need help with Safari?
         <ArrowUpRight size={14} />
       </a>
+    </div>
+  )
+}
+
+function ChromeIosNotice() {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="font-ui text-15 text-white/80 leading-relaxed">
+        Chrome on iPhone can't add apps to the home screen. Open this page in
+        <span className="text-white"> Safari</span> to install Afribit SATS.
+      </p>
+      <div className="flex flex-col gap-4 mt-1">
+        <Step n={1} text="Copy this page's link" />
+        <Step n={2} text="Open Safari and paste the link" />
+        <Step n={3} text='Tap Share, then "Add to Home Screen"' />
+      </div>
+    </div>
+  )
+}
+
+function AndroidManual({ samsung }: { samsung: boolean }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="font-ui text-15 text-white/80 leading-relaxed">
+        {samsung
+          ? 'In Samsung Internet, open the menu to add this app.'
+          : 'Use your browser menu to add this app to your home screen.'}
+      </p>
+      <div className="flex flex-col gap-4 mt-1">
+        <Step n={1} text={samsung ? 'Tap the menu (three lines) at the bottom' : 'Tap the menu (three dots) at the top right'} />
+        <Step n={2} text={samsung ? 'Tap "Add page to" then "Home screen"' : 'Tap "Add to Home screen" or "Install app"'} />
+        <Step n={3} text='Tap "Add" or "Install" to confirm' />
+      </div>
     </div>
   )
 }

@@ -41,11 +41,13 @@ export function OrbBar({
   thinking = false,
   onMessage,
   onError,
+  onActivity,
 }: {
   token: string
   thinking?: boolean
   onMessage?: (m: ChatMessage) => void
   onError?: () => void
+  onActivity?: () => void
 }) {
   const [value, setValue] = useState('')
   const [showHints, setShowHints] = useState(true)
@@ -183,7 +185,7 @@ export function OrbBar({
         <input
           type="text"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { setValue(e.target.value); onActivity?.() }}
           onKeyDown={(e) => { if (e.key === 'Enter') send(value) }}
           placeholder={listening ? 'Listening…' : thinking ? 'Thinking…' : 'Ask anything…'}
           disabled={thinking}

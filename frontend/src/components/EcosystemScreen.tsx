@@ -52,7 +52,7 @@ export function EcosystemScreen({
     >
       <div className="pt-[12vh]">
         <div className="font-ui text-12 text-white/35 tracking-wider uppercase">
-          Step 2 of 2
+          Connect
         </div>
         <h1 className="font-brand font-semibold text-28 text-white mt-3">
           Your Bitcoin world
