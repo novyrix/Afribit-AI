@@ -1,21 +1,29 @@
 import { useEffect, useState } from 'react'
-import { api, type Language, type Rate } from './lib/api'
-import { Chat } from './components/Chat'
-import { Wallets } from './components/Wallets'
-import { Transactions } from './components/Transactions'
+import { AnimatePresence } from 'framer-motion'
+import { api, TOKEN_KEY, type Language } from './lib/api'
+import { LaunchScreen } from './components/LaunchScreen'
+import { WalletSelection } from './components/WalletSelection'
+import { BlinkConnect } from './components/BlinkConnect'
+import { FediConnect } from './components/FediConnect'
+import { HelpSheet } from './components/HelpSheet'
+import { MainScreen } from './components/MainScreen'
 
-type Tab = 'chat' | 'wallets' | 'tx'
+type Phase = 'launch' | 'select' | 'connectBlink' | 'connectFedi' | 'main'
 
-const TOKEN_KEY = 'sats_token'
 const LANG_KEY = 'sats_lang'
+const PHASE_KEY = 'sats_phase'
 
 export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY))
-  const [language, setLanguage] = useState<Language>(
-    (localStorage.getItem(LANG_KEY) as Language) || 'sw'
+  const [language] = useState<Language>(
+    (localStorage.getItem(LANG_KEY) as Language) || 'en'
   )
-  const [rate, setRate] = useState<Rate | null>(null)
-  const [tab, setTab] = useState<Tab>('chat')
+  const [phase, setPhase] = useState<Phase>(
+    (localStorage.getItem(PHASE_KEY) as Phase) || 'launch'
+  )
+  const [helpFor, setHelpFor] = useState<'blink' | 'fedi' | null>(null)
+  const [hasBlink, setHasBlink] = useState(false)
+  const [hasFedi, setHasFedi] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -29,93 +37,83 @@ export default function App() {
   }, [token, language])
 
   useEffect(() => {
-    let cancelled = false
-    const load = () =>
-      api.getRate()
-        .then((r) => { if (!cancelled) setRate(r) })
-        .catch(() => {})
-    load()
-    const t = setInterval(load, 60_000)
-    return () => { cancelled = true; clearInterval(t) }
-  }, [])
+    if (!token) return
+    api.listWallets(token)
+      .then(({ wallets }) => {
+        setHasBlink(wallets.some((w) => w.walletType === 'blink'))
+        setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
+        if (wallets.length > 0 && phase === 'launch') {
+          setPhase('main')
+          localStorage.setItem(PHASE_KEY, 'main')
+        }
+      })
+      .catch(() => { /* noop */ })
+  }, [token, phase])
 
-  const changeLanguage = async (next: Language) => {
-    setLanguage(next)
-    localStorage.setItem(LANG_KEY, next)
-    if (token) await api.setLanguage(token, next).catch(() => {})
+  function go(next: Phase) {
+    setPhase(next)
+    localStorage.setItem(PHASE_KEY, next)
   }
 
-  const fmtKes = (n: number) =>
-    new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(n)
-
-  const tabs: { id: Tab; label: Record<Language, string> }[] = [
-    { id: 'chat',    label: { sw: 'Mazungumzo', en: 'Chat',     shg: 'Bonga' } },
-    { id: 'wallets', label: { sw: 'Mikoba',     en: 'Wallets',  shg: 'Wallets' } },
-    { id: 'tx',      label: { sw: 'Miamala',    en: 'History',  shg: 'History' } },
-  ]
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-white/10 bg-bitcoin-card/60 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-bitcoin-orange flex items-center justify-center text-black font-black text-lg flex-shrink-0">
-              ₿
-            </div>
-            <div className="min-w-0">
-              <div className="font-bold text-bitcoin-orange leading-none truncate">Afribit SATS</div>
-              <div className="text-[11px] text-white/50 leading-none mt-1">Kibera · AI Wallet</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {rate && (
-              <div className={`text-right text-xs ${rate.isStale ? 'text-amber-400' : 'text-white/70'}`}>
-                <div className="font-semibold tabular-nums">KES {fmtKes(rate.kesPerBtc)}</div>
-                <div className="text-[10px]">{rate.source}{rate.isStale ? ' · stale' : ''}</div>
-              </div>
-            )}
-            <select
-              value={language}
-              onChange={(e) => changeLanguage(e.target.value as Language)}
-              className="bg-bitcoin-dark border border-white/15 rounded px-2 py-1 text-xs"
-              aria-label="Language"
-            >
-              <option value="sw">SW</option>
-              <option value="en">EN</option>
-              <option value="shg">SHG</option>
-            </select>
-          </div>
-        </div>
-        <nav className="max-w-3xl mx-auto px-4 flex gap-1 -mb-px">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2 text-sm border-b-2 transition-colors ${
-                tab === t.id
-                  ? 'border-bitcoin-orange text-bitcoin-orange font-medium'
-                  : 'border-transparent text-white/60 hover:text-white'
-              }`}
-            >
-              {t.label[language]}
-            </button>
-          ))}
-        </nav>
-      </header>
-
+    <div className="min-h-screen bg-bg text-white">
       {error && (
-        <div className="max-w-3xl mx-auto w-full px-4 mt-3">
-          <div className="bg-red-900/40 border border-red-700 text-red-200 px-3 py-2 rounded text-sm">
-            {error}
-          </div>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] glass-pill px-4 py-2
+                        font-text text-13 text-negative max-w-[90vw]">
+          {error}
         </div>
       )}
 
-      <main className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'chat'    && <Chat token={token} language={language} />}
-        {tab === 'wallets' && <Wallets token={token} language={language} />}
-        {tab === 'tx'      && <Transactions token={token} language={language} rate={rate} />}
-      </main>
+      <AnimatePresence mode="wait">
+        {phase === 'launch' && (
+          <LaunchScreen key="launch" onContinue={() => go('select')} />
+        )}
+
+        {phase === 'select' && token && (
+          <WalletSelection
+            key="select"
+            hasBlink={hasBlink}
+            hasFedi={hasFedi}
+            onSelectBlink={() => go('connectBlink')}
+            onSelectFedi={() => go('connectFedi')}
+            onSkip={() => go('main')}
+          />
+        )}
+
+        {phase === 'connectBlink' && token && (
+          <BlinkConnect
+            key="blink"
+            token={token}
+            onBack={() => go('select')}
+            onHelp={() => setHelpFor('blink')}
+            onDone={() => { setHasBlink(true); go('main') }}
+          />
+        )}
+
+        {phase === 'connectFedi' && token && (
+          <FediConnect
+            key="fedi"
+            token={token}
+            onBack={() => go('select')}
+            onHelp={() => setHelpFor('fedi')}
+            onDone={() => { setHasFedi(true); go('main') }}
+          />
+        )}
+
+        {phase === 'main' && token && (
+          <MainScreen
+            key="main"
+            token={token}
+            onAddWallet={() => go('select')}
+          />
+        )}
+      </AnimatePresence>
+
+      <HelpSheet
+        variant={helpFor ?? 'blink'}
+        open={helpFor !== null}
+        onClose={() => setHelpFor(null)}
+      />
     </div>
   )
 }

@@ -122,6 +122,28 @@ export const api = {
     return json<{ walletConnId: string; federationId: string }>(res)
   },
 
+  async getWalletBalance(token: string, walletConnId: string) {
+    const res = await fetch(`${API_URL}/wallets/${walletConnId}/balance`, {
+      headers: authHeaders(token),
+    })
+    return json<{
+      walletConnId: string
+      nickname: string | null
+      balanceSats: number
+      balanceKes: number
+      kesPerBtc: number
+      rateIsStale: boolean
+    }>(res)
+  },
+
+  async syncWallet(token: string, walletConnId: string) {
+    const res = await fetch(`${API_URL}/wallets/${walletConnId}/sync`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    })
+    return json<{ ok: boolean }>(res)
+  },
+
   async listTransactions(token: string, limit = 50) {
     const res = await fetch(`${API_URL}/transactions?limit=${limit}`, {
       headers: authHeaders(token),
