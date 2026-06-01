@@ -1,205 +1,121 @@
-import { useEffect, useState, useRef, FormEvent } from 'react'
+import { useEffect, useState } from 'react'
+import { api, type Language, type Rate } from './lib/api'
+import { Chat } from './components/Chat'
+import { Wallets } from './components/Wallets'
+import { Transactions } from './components/Transactions'
 
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3002'
+type Tab = 'chat' | 'wallets' | 'tx'
+
 const TOKEN_KEY = 'sats_token'
-
-type Rate = { kesPerBtc: number; isStale: boolean; source: string }
-type ChatMsg = { role: 'user' | 'assistant'; content: string; meta?: string }
+const LANG_KEY = 'sats_lang'
 
 export default function App() {
-  const [token, setToken]     = useState<string | null>(localStorage.getItem(TOKEN_KEY))
-  const [rate, setRate]       = useState<Rate | null>(null)
-  const [language, setLang]   = useState<'sw' | 'en' | 'shg'>('sw')
-  const [messages, setMessages] = useState<ChatMsg[]>([])
-  const [input, setInput]     = useState('')
-  const [busy, setBusy]       = useState(false)
-  const [error, setError]     = useState<string | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY))
+  const [language, setLanguage] = useState<Language>(
+    (localStorage.getItem(LANG_KEY) as Language) || 'sw'
+  )
+  const [rate, setRate] = useState<Rate | null>(null)
+  const [tab, setTab] = useState<Tab>('chat')
+  const [error, setError] = useState<string | null>(null)
 
-  // ── Session bootstrap ───────────────────────────────────────────────────────
   useEffect(() => {
     if (token) return
-    fetch(`${API_URL}/session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language }),
-    })
-      .then((r) => r.json())
+    api.createSession(language)
       .then((d) => {
-        if (d.token) {
-          localStorage.setItem(TOKEN_KEY, d.token)
-          setToken(d.token)
-        } else {
-          setError('Could not start session')
-        }
+        localStorage.setItem(TOKEN_KEY, d.token)
+        setToken(d.token)
       })
-      .catch(() => setError('Backend unreachable'))
+      .catch((e) => setError(`Session failed: ${e.message}`))
   }, [token, language])
 
-  // ── Live BTC/KES rate ───────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false
     const load = () =>
-      fetch(`${API_URL}/rates/current`)
-        .then((r) => r.json())
-        .then((d) => setRate({ kesPerBtc: d.kesPerBtc, isStale: d.isStale, source: d.source }))
+      api.getRate()
+        .then((r) => { if (!cancelled) setRate(r) })
         .catch(() => {})
     load()
     const t = setInterval(load, 60_000)
-    return () => clearInterval(t)
+    return () => { cancelled = true; clearInterval(t) }
   }, [])
 
-  // ── Auto-scroll chat ────────────────────────────────────────────────────────
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages])
-
-  // ── Language switch ─────────────────────────────────────────────────────────
-  const changeLanguage = async (next: 'sw' | 'en' | 'shg') => {
-    setLang(next)
-    if (!token) return
-    await fetch(`${API_URL}/session/language`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ language: next }),
-    }).catch(() => {})
-  }
-
-  // ── Send chat ───────────────────────────────────────────────────────────────
-  const send = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || !token || busy) return
-    const msg = input.trim()
-    setInput('')
-    setMessages((m) => [...m, { role: 'user', content: msg }])
-    setBusy(true)
-    try {
-      const res = await fetch(`${API_URL}/ai/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: msg }),
-      })
-      const data = await res.json()
-      if (data.reply) {
-        setMessages((m) => [
-          ...m,
-          { role: 'assistant', content: data.reply, meta: `${data.model} · ${data.latencyMs}ms` },
-        ])
-      } else {
-        setMessages((m) => [...m, { role: 'assistant', content: `Hitilafu: ${data.error ?? 'unknown'}` }])
-      }
-    } catch {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Server haifikiki.' }])
-    } finally {
-      setBusy(false)
-    }
+  const changeLanguage = async (next: Language) => {
+    setLanguage(next)
+    localStorage.setItem(LANG_KEY, next)
+    if (token) await api.setLanguage(token, next).catch(() => {})
   }
 
   const fmtKes = (n: number) =>
     new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(n)
 
+  const tabs: { id: Tab; label: Record<Language, string> }[] = [
+    { id: 'chat',    label: { sw: 'Mazungumzo', en: 'Chat',     shg: 'Bonga' } },
+    { id: 'wallets', label: { sw: 'Mikoba',     en: 'Wallets',  shg: 'Wallets' } },
+    { id: 'tx',      label: { sw: 'Miamala',    en: 'History',  shg: 'History' } },
+  ]
+
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="border-b border-white/10 bg-bitcoin-card/60 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">₿</span>
-            <div>
-              <div className="font-bold text-bitcoin-orange leading-none">Afribit SATS</div>
+      <header className="border-b border-white/10 bg-bitcoin-card/60 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-bitcoin-orange flex items-center justify-center text-black font-black text-lg flex-shrink-0">
+              ₿
+            </div>
+            <div className="min-w-0">
+              <div className="font-bold text-bitcoin-orange leading-none truncate">Afribit SATS</div>
               <div className="text-[11px] text-white/50 leading-none mt-1">Kibera · AI Wallet</div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {rate && (
               <div className={`text-right text-xs ${rate.isStale ? 'text-amber-400' : 'text-white/70'}`}>
-                <div className="font-semibold">KES {fmtKes(rate.kesPerBtc)}/BTC</div>
+                <div className="font-semibold tabular-nums">KES {fmtKes(rate.kesPerBtc)}</div>
                 <div className="text-[10px]">{rate.source}{rate.isStale ? ' · stale' : ''}</div>
               </div>
             )}
             <select
               value={language}
-              onChange={(e) => changeLanguage(e.target.value as 'sw' | 'en' | 'shg')}
+              onChange={(e) => changeLanguage(e.target.value as Language)}
               className="bg-bitcoin-dark border border-white/15 rounded px-2 py-1 text-xs"
+              aria-label="Language"
             >
-              <option value="sw">Swahili</option>
-              <option value="en">English</option>
-              <option value="shg">Sheng</option>
+              <option value="sw">SW</option>
+              <option value="en">EN</option>
+              <option value="shg">SHG</option>
             </select>
           </div>
         </div>
+        <nav className="max-w-3xl mx-auto px-4 flex gap-1 -mb-px">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                tab === t.id
+                  ? 'border-bitcoin-orange text-bitcoin-orange font-medium'
+                  : 'border-transparent text-white/60 hover:text-white'
+              }`}
+            >
+              {t.label[language]}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      {/* Chat */}
-      <main className="flex-1 overflow-hidden">
-        <div ref={scrollRef} className="h-full max-w-3xl mx-auto px-4 py-6 overflow-y-auto space-y-3">
-          {error && (
-            <div className="bg-red-900/40 border border-red-700 text-red-200 px-3 py-2 rounded text-sm">
-              {error}
-            </div>
-          )}
-          {messages.length === 0 && !error && (
-            <div className="text-center text-white/40 mt-20 space-y-2 text-sm">
-              <div className="text-4xl mb-3">👋</div>
-              <div>Habari! Mimi ni SATS.</div>
-              <div className="text-xs">Uliza chochote kuhusu Bitcoin, wallet yako, au bei ya leo.</div>
-            </div>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ${
-                  m.role === 'user'
-                    ? 'bg-bitcoin-orange text-black rounded-br-sm'
-                    : 'bg-bitcoin-card border border-white/10 rounded-bl-sm'
-                }`}
-              >
-                {m.content}
-                {m.meta && <div className="text-[10px] opacity-50 mt-1">{m.meta}</div>}
-              </div>
-            </div>
-          ))}
-          {busy && (
-            <div className="flex justify-start">
-              <div className="bg-bitcoin-card border border-white/10 px-3 py-2 rounded-2xl rounded-bl-sm text-sm">
-                <span className="inline-block animate-pulse">SATS inafikiria…</span>
-              </div>
-            </div>
-          )}
+      {error && (
+        <div className="max-w-3xl mx-auto w-full px-4 mt-3">
+          <div className="bg-red-900/40 border border-red-700 text-red-200 px-3 py-2 rounded text-sm">
+            {error}
+          </div>
         </div>
-      </main>
+      )}
 
-      {/* Composer */}
-      <form
-        onSubmit={send}
-        className="border-t border-white/10 bg-bitcoin-card/60 backdrop-blur-sm"
-      >
-        <div className="max-w-3xl mx-auto p-3 flex items-center gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={!token || busy}
-            placeholder={
-              language === 'en' ? 'Ask SATS anything…' :
-              language === 'shg' ? 'Bonga na SATS…' :
-              'Andika ujumbe…'
-            }
-            className="flex-1 bg-bitcoin-dark border border-white/15 rounded-full px-4 py-2 text-sm outline-none focus:border-bitcoin-orange disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!token || busy || !input.trim()}
-            className="bg-bitcoin-orange text-black font-semibold rounded-full px-4 py-2 text-sm disabled:opacity-40"
-          >
-            Tuma
-          </button>
-        </div>
-      </form>
+      <main className="flex-1 overflow-hidden flex flex-col">
+        {tab === 'chat'    && <Chat token={token} language={language} />}
+        {tab === 'wallets' && <Wallets token={token} language={language} />}
+        {tab === 'tx'      && <Transactions token={token} language={language} rate={rate} />}
+      </main>
     </div>
   )
 }
