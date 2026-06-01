@@ -16,29 +16,13 @@ export default {
         'bitcoin-card':   '#141414',
       },
       fontFamily: {
-        display: [
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"SF Pro Display"',
-          '"Segoe UI"',
-          'system-ui',
-          'sans-serif',
-        ],
-        text: [
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"SF Pro Text"',
-          '"Segoe UI"',
-          'system-ui',
-          'sans-serif',
-        ],
-        mono: [
-          'ui-monospace',
-          'SFMono-Regular',
-          '"SF Mono"',
-          'Menlo',
-          'monospace',
-        ],
+        ui:      ['Outfit', 'system-ui', 'sans-serif'],
+        brand:   ['"Space Grotesk"', 'Outfit', 'sans-serif'],
+        numbers: ['"Space Mono"', '"Courier New"', 'monospace'],
+        // legacy aliases kept for safety during migration
+        display: ['Outfit', '-apple-system', 'system-ui', 'sans-serif'],
+        text:    ['Outfit', '-apple-system', 'system-ui', 'sans-serif'],
+        mono:    ['"Space Mono"', 'ui-monospace', 'monospace'],
       },
       fontSize: {
         // Apple HIG-aligned sizes; numeric values are pt-equivalents (1pt = 1px on web)

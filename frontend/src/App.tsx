@@ -7,6 +7,8 @@ import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
 import { HelpSheet } from './components/HelpSheet'
 import { MainScreen } from './components/MainScreen'
+import { BgCanvas } from './components/ui/BgCanvas'
+import { InstallPrompts } from './components/InstallPrompts'
 
 type Phase = 'launch' | 'select' | 'connectBlink' | 'connectFedi' | 'main'
 
@@ -56,13 +58,17 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-white">
+    <div className="min-h-screen text-white">
+      <BgCanvas />
+
       {error && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] glass-pill px-4 py-2
-                        font-text text-13 text-negative max-w-[90vw]">
+                        font-ui text-13 text-negative max-w-[90vw]">
           {error}
         </div>
       )}
+
+      <InstallPrompts trigger={phase === 'main'} />
 
       <AnimatePresence mode="wait">
         {phase === 'launch' && (

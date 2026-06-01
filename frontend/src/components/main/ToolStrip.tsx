@@ -26,20 +26,21 @@ export function ToolStrip({ connectedIds = [] }: { connectedIds?: string[] }) {
            WebkitMaskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)',
          }}>
       <motion.div
-        className="absolute top-0 left-0 flex items-center gap-6 h-10"
+        className="absolute top-0 left-0 flex items-center gap-2.5 h-10"
         animate={{ x: ['0%', '-50%'] }}
-        transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+        transition={{ duration: 32, repeat: Infinity, ease: 'linear' }}
       >
         {loop.map((t, i) => {
           const Icon = t.Icon
           const active = connectedIds.includes(t.id)
           return (
-            <div key={`${t.id}-${i}`} className="flex items-center gap-1.5 flex-shrink-0">
-              <Icon size={18} className={active ? 'text-bitcoin' : 'text-white/35'} />
-              <span className={`font-text text-12 ${active ? 'text-white/80' : 'text-white/35'}`}>
-                {t.label}
-              </span>
-            </div>
+            <span
+              key={`${t.id}-${i}`}
+              className={'tool-chip ' + (active ? 'tool-chip--connected' : 'tool-chip--available')}
+            >
+              <Icon size={14} />
+              <span>{t.label}</span>
+            </span>
           )
         })}
       </motion.div>

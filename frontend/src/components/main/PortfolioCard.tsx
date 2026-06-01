@@ -1,16 +1,46 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft } from '../ui/Icons'
 import { Glass } from '../ui/Glass'
 import { api, type Summary, type Transaction } from '../../lib/api'
 
-const SPRING = { type: 'spring' as const, damping: 22, stiffness: 200 }
+function useCountUp(target: number | null, duration = 1400) {
+  const [val, setVal] = useState(0)
+  const fromRef = useRef(0)
+  const startRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (target === null) return
+    fromRef.current = val
+    startRef.current = null
+    const to = target
+    function step(t: number) {
+      if (startRef.current === null) startRef.current = t
+      const elapsed = t - startRef.current
+      const p = Math.min(1, elapsed / duration)
+      const eased = 1 - Math.pow(1 - p, 3)
+      const next = Math.round(fromRef.current + (to - fromRef.current) * eased)
+      setVal(next)
+      if (p < 1) rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target])
+  return val
+}
 
 function Sparkline({ values }: { values: number[] }) {
   if (values.length < 2) {
-    return <div className="h-12 w-full flex items-center justify-center text-12 text-white/30 font-text">
-      Awaiting activity
-    </div>
+    return (
+      <div className="h-12 w-full flex flex-col items-center justify-center gap-2 text-white/30">
+        <div className="font-numbers text-15 tracking-widest">···</div>
+        <div className="font-ui text-12">Awaiting activity</div>
+      </div>
+    )
   }
   const w = 280, h = 48
   const min = Math.min(...values), max = Math.max(...values)
@@ -35,6 +65,7 @@ export function PortfolioCard({ token }: { token: string }) {
   const [series, setSeries] = useState<number[]>([])
   const [reveal, setReveal] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const animatedSats = useCountUp(totalSats)
 
   useEffect(() => {
     let cancelled = false
@@ -80,26 +111,33 @@ export function PortfolioCard({ token }: { token: string }) {
     return () => { cancelled = true }
   }, [token])
 
+  const empty = totalSats === 0
+  const loading = totalSats === null
+
   return (
-    <Glass radius="card" className="w-full p-5">
+    <Glass radius="card" className="w-full p-5 min-h-[200px]">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="font-text text-13 text-white/50">Total balance</p>
+        <div className="flex-1 min-w-0">
+          <p className="font-ui text-13 text-white/50">Total balance</p>
           <motion.div
-            key={totalSats ?? -1}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={SPRING}
-            className="font-mono font-semibold text-34 text-white mt-1 tabular"
+            transition={{ type: 'spring', damping: 22, stiffness: 200 }}
+            className="font-numbers font-bold text-[38px] leading-none text-white mt-2 tabular"
           >
-            {totalSats === null ? '—' : reveal
-              ? `${totalSats.toLocaleString()}`
+            {loading ? '—' : reveal
+              ? animatedSats.toLocaleString()
               : '••••••'}
-            <span className="text-15 text-white/40 ml-2 font-display">sats</span>
+            <span className="text-15 text-white/40 ml-2 font-brand font-medium">sats</span>
           </motion.div>
-          {totalKes !== null && reveal && (
-            <p className="font-text text-13 text-white/55 mt-1 tabular">
+          {totalKes !== null && reveal && !empty && (
+            <p className="font-numbers text-[18px] text-white/55 mt-2 tabular">
               ≈ KES {Math.round(totalKes).toLocaleString()}
+            </p>
+          )}
+          {empty && (
+            <p className="font-ui text-13 text-white/40 mt-2 leading-relaxed">
+              No balance yet. Connect a wallet to get started.
             </p>
           )}
         </div>
@@ -120,19 +158,19 @@ export function PortfolioCard({ token }: { token: string }) {
         <div className="mt-4 grid grid-cols-2 gap-3">
           <SummaryTile
             icon={<ArrowDownLeft size={16} className="text-positive" />}
-            label="In · 30d"
+            label="IN · 30D"
             value={summary.incoming.sats}
           />
           <SummaryTile
             icon={<ArrowUpRight size={16} className="text-negative" />}
-            label="Out · 30d"
+            label="OUT · 30D"
             value={summary.outgoing.sats}
           />
         </div>
       )}
 
       {error && (
-        <p className="mt-3 font-text text-13 text-negative">{error}</p>
+        <p className="mt-3 font-ui text-13 text-negative">{error}</p>
       )}
     </Glass>
   )
@@ -143,9 +181,11 @@ function SummaryTile({ icon, label, value }: { icon: React.ReactNode; label: str
     <div className="rounded-glass bg-white/[0.04] border border-white/10 px-3 py-2.5">
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="font-text text-12 text-white/55">{label}</span>
+        <span className="font-ui text-11 uppercase tracking-[0.5px] text-white/45">
+          {label}
+        </span>
       </div>
-      <div className="font-mono text-17 text-white mt-1 tabular">
+      <div className="font-numbers font-bold text-[22px] text-white mt-1 tabular">
         {value.toLocaleString()}
       </div>
     </div>
