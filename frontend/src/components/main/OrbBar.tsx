@@ -38,21 +38,23 @@ function getSR(): (new () => SR) | null {
 
 export function OrbBar({
   token,
+  thinking = false,
   onMessage,
+  onError,
 }: {
   token: string
+  thinking?: boolean
   onMessage?: (m: ChatMessage) => void
+  onError?: () => void
 }) {
   const [value, setValue] = useState('')
-  const [sending, setSending] = useState(false)
   const [showHints, setShowHints] = useState(true)
   const [listening, setListening] = useState(false)
   const recRef = useRef<SR | null>(null)
 
   async function send(text: string) {
     const msg = text.trim()
-    if (!msg || sending) return
-    setSending(true)
+    if (!msg || thinking) return
     setShowHints(false)
     onMessage?.({ role: 'user', text: msg })
     setValue('')
@@ -62,8 +64,7 @@ export function OrbBar({
     } catch (e: unknown) {
       const m = e instanceof Error ? e.message : 'Request failed'
       onMessage?.({ role: 'assistant', text: m })
-    } finally {
-      setSending(false)
+      onError?.()
     }
   }
 
@@ -77,6 +78,7 @@ export function OrbBar({
       setListening(false)
       return
     }
+    if (thinking) return
     const Ctor = getSR()
     if (!Ctor) {
       onMessage?.({ role: 'assistant', text: 'Voice input not supported on this device. Please type your question.' })
@@ -98,9 +100,7 @@ export function OrbBar({
       }
       setValue(interim || finalText)
     }
-    rec.onerror = () => {
-      setListening(false)
-    }
+    rec.onerror = () => setListening(false)
     rec.onend = () => {
       setListening(false)
       const t = finalText.trim()
@@ -117,7 +117,7 @@ export function OrbBar({
   return (
     <div className="w-full flex flex-col items-center gap-3">
       <AnimatePresence>
-        {showHints && (
+        {showHints && !thinking && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -138,15 +138,16 @@ export function OrbBar({
         )}
       </AnimatePresence>
 
+      {listening && (
+        <div className="font-ui text-12 text-white/40">Listening…</div>
+      )}
+
       <div className="glass-pill w-full h-14 px-2 flex items-center gap-2">
         <motion.button
           onClick={startVoice}
           whileTap={{ scale: 0.94 }}
-          animate={{
-            scale: listening ? [1, 1.10, 1] : sending ? [1, 1.08, 1] : 1,
-            opacity: sending ? [0.6, 1, 0.6] : 1,
-          }}
-          transition={(listening || sending) ? { duration: 1.2, repeat: Infinity } : SPRING}
+          animate={{ scale: listening ? [1, 1.10, 1] : 1 }}
+          transition={listening ? { duration: 1.2, repeat: Infinity } : SPRING}
           className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center"
           style={{
             background: listening
@@ -184,15 +185,15 @@ export function OrbBar({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') send(value) }}
-          placeholder={listening ? 'Listening…' : 'Ask anything…'}
-          disabled={sending}
+          placeholder={listening ? 'Listening…' : thinking ? 'Thinking…' : 'Ask anything…'}
+          disabled={thinking}
           className="flex-1 bg-transparent outline-none font-ui text-15 text-white
-                     placeholder:text-white/40 min-w-0"
+                     placeholder:text-white/40 min-w-0 disabled:opacity-60"
         />
 
         <motion.button
           onClick={() => send(value)}
-          disabled={!value.trim() || sending}
+          disabled={!value.trim() || thinking}
           whileTap={{ scale: 0.92 }}
           transition={{ type: 'spring', damping: 18, stiffness: 320 }}
           className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center

@@ -107,6 +107,16 @@ export function LaunchScreen({ onContinue }: { onContinue: () => void }) {
               </motion.button>
             </div>
           </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: showBtn ? 1 : 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute left-0 right-0 text-center font-ui text-12 text-white/25 tracking-wide"
+            style={{ bottom: 'calc(16px + env(safe-area-inset-bottom))' }}
+          >
+            Made by Afribit Africa · afribit.africa
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

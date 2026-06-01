@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { api, TOKEN_KEY, type Language } from './lib/api'
 import { LaunchScreen } from './components/LaunchScreen'
-import { WalletSelection } from './components/WalletSelection'
+import { InstallScreen } from './components/InstallScreen'
+import { EcosystemScreen } from './components/EcosystemScreen'
 import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
 import { HelpSheet } from './components/HelpSheet'
 import { MainScreen } from './components/MainScreen'
 import { BgCanvas } from './components/ui/BgCanvas'
-import { InstallPrompts } from './components/InstallPrompts'
+import { isStandalone } from './lib/pwa'
 
-type Phase = 'launch' | 'select' | 'connectBlink' | 'connectFedi' | 'main'
+type Phase = 'launch' | 'install' | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'main'
 
 const LANG_KEY = 'sats_lang'
 const PHASE_KEY = 'sats_phase'
@@ -44,7 +45,7 @@ export default function App() {
       .then(({ wallets }) => {
         setHasBlink(wallets.some((w) => w.walletType === 'blink'))
         setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
-        if (wallets.length > 0 && phase === 'launch') {
+        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'ecosystem')) {
           setPhase('main')
           localStorage.setItem(PHASE_KEY, 'main')
         }
@@ -68,16 +69,21 @@ export default function App() {
         </div>
       )}
 
-      <InstallPrompts trigger={phase === 'main'} />
-
       <AnimatePresence mode="wait">
         {phase === 'launch' && (
-          <LaunchScreen key="launch" onContinue={() => go('select')} />
+          <LaunchScreen
+            key="launch"
+            onContinue={() => go(isStandalone() ? 'ecosystem' : 'install')}
+          />
         )}
 
-        {phase === 'select' && token && (
-          <WalletSelection
-            key="select"
+        {phase === 'install' && (
+          <InstallScreen key="install" onContinue={() => go('ecosystem')} />
+        )}
+
+        {phase === 'ecosystem' && token && (
+          <EcosystemScreen
+            key="ecosystem"
             hasBlink={hasBlink}
             hasFedi={hasFedi}
             onSelectBlink={() => go('connectBlink')}
@@ -90,7 +96,7 @@ export default function App() {
           <BlinkConnect
             key="blink"
             token={token}
-            onBack={() => go('select')}
+            onBack={() => go('ecosystem')}
             onHelp={() => setHelpFor('blink')}
             onDone={() => { setHasBlink(true); go('main') }}
           />
@@ -100,7 +106,7 @@ export default function App() {
           <FediConnect
             key="fedi"
             token={token}
-            onBack={() => go('select')}
+            onBack={() => go('ecosystem')}
             onHelp={() => setHelpFor('fedi')}
             onDone={() => { setHasFedi(true); go('main') }}
           />
@@ -110,7 +116,7 @@ export default function App() {
           <MainScreen
             key="main"
             token={token}
-            onAddWallet={() => go('select')}
+            onAddWallet={() => go('ecosystem')}
           />
         )}
       </AnimatePresence>
