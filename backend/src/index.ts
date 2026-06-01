@@ -27,7 +27,13 @@ app.use(helmet({
 
 // ── CORS — Vercel frontend + local dev ────────────────────────────────────────
 app.use(cors({
-  origin: [config.cors.origin, 'http://localhost:5173', 'http://localhost:3000'],
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    const allowed = [config.cors.origin, 'http://localhost:5173', 'http://localhost:3000'];
+    if (allowed.includes(origin)) return cb(null, true);
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
