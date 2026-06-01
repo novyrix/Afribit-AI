@@ -1,23 +1,22 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMemo, useState } from 'react'
-import { Bolt, FediMark, BitcoinMark, ChevronRight } from './ui/Icons'
+import { useMemo } from 'react'
+import { BitcoinMark, ChevronRight } from './ui/Icons'
 
 type Status = 'connected' | 'available' | 'soon'
-type Category = 'wallets' | 'buy'
 
 type Service = {
   id: string
   name: string
-  Icon: React.ComponentType<{ size?: number; className?: string }>
+  logo: string
   status: Status
-  category: Category
+  angle: number
 }
 
-function nodePositions(n: number, radius: number) {
-  return Array.from({ length: n }, (_, i) => {
-    const angle = (2 * Math.PI * i) / n - Math.PI / 2
-    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
-  })
+const RADIUS = 120
+
+function polar(angleDeg: number) {
+  const r = (angleDeg * Math.PI) / 180
+  return { x: Math.cos(r) * RADIUS, y: Math.sin(r) * RADIUS }
 }
 
 export function EcosystemScreen({
@@ -30,17 +29,12 @@ export function EcosystemScreen({
   onSelectFedi: () => void
   onSkip: () => void
 }) {
-  const [tab, setTab] = useState<Category>('wallets')
-
   const services: Service[] = useMemo(() => [
-    { id: 'blink', name: 'Blink', Icon: Bolt, status: hasBlink ? 'connected' : 'available', category: 'wallets' },
-    { id: 'fedi',  name: 'Fedi',  Icon: FediMark, status: hasFedi ? 'connected' : 'available', category: 'wallets' },
-    { id: 'bitika', name: 'Bitika', Icon: BoltOutline, status: 'soon', category: 'buy' },
-    { id: 'minmo', name: 'Minmo',  Icon: CircleDuo, status: 'soon', category: 'buy' },
+    { id: 'blink',  name: 'Blink',  logo: '/logos/blink.svg',  status: hasBlink ? 'connected' : 'available', angle: -90 },
+    { id: 'fedi',   name: 'Fedi',   logo: '/logos/fedi.png',   status: hasFedi  ? 'connected' : 'available', angle:   0 },
+    { id: 'bitika', name: 'Bitika', logo: '/logos/bitika.png', status: 'soon',                               angle:  90 },
+    { id: 'minmo',  name: 'Minmo',  logo: '/logos/minmo.png',  status: 'soon',                               angle: 180 },
   ], [hasBlink, hasFedi])
-
-  const visible = services.filter((s) => s.category === tab)
-  const positions = nodePositions(Math.max(visible.length, 4), 120)
 
   function tap(s: Service) {
     if (s.status === 'soon') return
@@ -68,53 +62,44 @@ export function EcosystemScreen({
         </p>
       </div>
 
-      {/* Category tabs */}
-      <div className="mt-6 flex gap-2">
-        <TabPill active={tab === 'wallets'} onClick={() => setTab('wallets')}>Wallets</TabPill>
-        <TabPill active={tab === 'buy'} onClick={() => setTab('buy')}>Buy Bitcoin</TabPill>
-      </div>
-
-      {/* Radial nodes */}
       <div className="flex-1 relative flex items-center justify-center">
-        <div className="relative" style={{ width: 280, height: 280 }}>
-          {/* SVG connection lines */}
+        <div className="relative" style={{ width: 300, height: 300 }}>
           <svg
             className="absolute inset-0 pointer-events-none"
-            width={280}
-            height={280}
-            viewBox="-140 -140 280 280"
+            width={300}
+            height={300}
+            viewBox="-150 -150 300 300"
           >
-            {visible.map((s, i) => {
-              const p = positions[i]
-              const active = s.status === 'connected'
+            {services.map((s) => {
+              const p = polar(s.angle)
               return (
                 <line
                   key={s.id}
                   x1={0} y1={0}
                   x2={p.x} y2={p.y}
-                  stroke={active ? 'rgba(247,147,26,0.40)' : 'rgba(247,147,26,0.15)'}
-                  strokeWidth={0.5}
+                  stroke={s.status === 'connected' ? 'rgba(247,147,26,0.40)' : 'rgba(247,147,26,0.12)'}
+                  strokeWidth={0.8}
+                  strokeDasharray={s.status === 'soon' ? '3 4' : undefined}
                 />
               )
             })}
           </svg>
 
-          {/* Central SATS node */}
-          <div className="absolute" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+          <div className="absolute" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}>
             <div className="relative w-14 h-14">
-              <div className="ring-spin absolute inset-[-6px] rounded-full border border-dashed"
-                   style={{ borderColor: 'rgba(247,147,26,0.30)' }} />
+              <div
+                className="ring-spin absolute rounded-full border border-dashed"
+                style={{ inset: -8, borderColor: 'rgba(247,147,26,0.30)' }}
+              />
               <div className="glass w-14 h-14 rounded-full flex items-center justify-center">
                 <BitcoinMark size={22} className="text-bitcoin" />
               </div>
             </div>
           </div>
 
-          {/* Service nodes */}
-          <AnimatePresence mode="popLayout">
-            {visible.map((s, i) => {
-              const p = positions[i]
-              const Icon = s.Icon
+          <AnimatePresence>
+            {services.map((s, i) => {
+              const p = polar(s.angle)
               const soon = s.status === 'soon'
               const connected = s.status === 'connected'
               return (
@@ -123,32 +108,50 @@ export function EcosystemScreen({
                   initial={{ opacity: 0, scale: 0.6 }}
                   animate={{ opacity: soon ? 0.55 : 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.6 }}
-                  transition={{ delay: i * 0.06, type: 'spring', damping: 16, stiffness: 220 }}
+                  transition={{ delay: i * 0.07, type: 'spring', damping: 16, stiffness: 220 }}
                   whileTap={soon ? undefined : { scale: 0.92 }}
                   onClick={() => tap(s)}
                   disabled={soon}
                   className="absolute flex flex-col items-center gap-1.5"
                   style={{
-                    left: '50%', top: '50%',
+                    left: '50%',
+                    top: '50%',
                     transform: `translate(calc(${p.x}px - 50%), calc(${p.y}px - 50%))`,
                   }}
                 >
                   <div
-                    className="glass w-[52px] h-[52px] rounded-full flex items-center justify-center relative"
-                    style={connected ? { boxShadow: '0 0 0 2px #00C896' } : undefined}
+                    className="w-[52px] h-[52px] rounded-full overflow-hidden relative flex items-center justify-center"
+                    style={{
+                      background: 'rgba(255,255,255,0.07)',
+                      backdropFilter: 'blur(12px)',
+                      border: connected
+                        ? '2px solid #00C896'
+                        : '1px solid rgba(255,255,255,0.12)',
+                    }}
                   >
-                    <Icon size={24} className={soon ? 'text-white/30' : 'text-white'} />
+                    <img
+                      src={s.logo}
+                      alt={s.name}
+                      className="w-9 h-9 object-contain rounded-full"
+                      draggable={false}
+                    />
                   </div>
                   <div className="font-ui text-11 text-white/60 whitespace-nowrap">
                     {s.name}
                   </div>
                   {soon && (
                     <div
-                      className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full font-ui text-10 font-medium"
+                      className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full font-ui text-[9px] font-medium leading-tight"
                       style={{ background: 'rgba(247,147,26,0.20)', color: '#F7931A' }}
                     >
                       Soon
                     </div>
+                  )}
+                  {connected && (
+                    <div
+                      className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+                      style={{ background: '#00C896' }}
+                    />
                   )}
                 </motion.button>
               )
@@ -167,44 +170,5 @@ export function EcosystemScreen({
         </button>
       </div>
     </motion.div>
-  )
-}
-
-function TabPill({
-  active, onClick, children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 h-9 rounded-full font-ui text-13 transition-colors ${
-        active
-          ? 'bg-white/10 border border-white/25 text-white'
-          : 'border border-white/10 text-white/45 hover:text-white/70'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
-// Placeholder icons for upcoming services — clearly non-AI-slop (geometric only)
-function BoltOutline({ size = 24, className }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" strokeWidth={1.4}
-            strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  )
-}
-function CircleDuo({ size = 24, className }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <circle cx="9" cy="12" r="5" stroke="currentColor" strokeWidth={1.4} />
-      <circle cx="15" cy="12" r="5" stroke="currentColor" strokeWidth={1.4} />
-    </svg>
   )
 }
