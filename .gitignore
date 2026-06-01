@@ -1,0 +1,21 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# secrets — NEVER commit
+**/.env
+**/.env.local
+.env
+
+# editor
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
+# build outputs
+backend/dist/
+frontend/dist/
+frontend/.next/

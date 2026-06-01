@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Afribit SATS — Wireframe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #111;
+    font-family: 'Inter', 'DM Sans', system-ui, sans-serif;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+  }
+
+  /* ── SCREEN NAV ── */
+  .screen-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 28px;
+    max-width: 760px;
+  }
+  .screen-nav button {
+    background: #1A1A1A;
+    border: 1px solid #2a2a2a;
+    color: #AAAAAA;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .screen-nav button:hover { border-color: #F7931A; color: #F7931A; }
+  .screen-nav button.active { background: #F7931A; color: #000; border-color: #F7931A; font-weight: 600; }
+
+  /* ── PHONE SHELL ── */
+  .phone {
+    width: 360px;
+    min-height: 780px;
+    background: #0D0D0D;
+    border-radius: 40px;
+    border: 2px solid #2a2a2a;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 60px rgba(247,147,26,.10), 0 24px 80px #000;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* status bar */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 24px 8px;
+    font-size: 11px;
+    color: #555;
+  }
+
+  /* screens — only one visible at a time */
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── TOKENS ── */
+  :root {
+    --orange: #F7931A;
+    --amber:  #FFB547;
+    --teal:   #00C896;
+    --red:    #FF4D4D;
+    --grey:   #AAAAAA;
+    --card:   #1A1A1A;
+    --bg:     #0D0D0D;
+  }
+
+  /* ══════════════════════════════════
+     SCREEN 1 — SPLASH
+  ══════════════════════════════════ */
+  #s-splash {
+    background: #0D0D0D;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0;
+  }
+  .splash-symbol {
+    font-size: 72px;
+    color: var(--orange);
+    line-height: 1;
+    margin-bottom: 32px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+  .splash-line { font-size: 22px; font-weight: 700; letter-spacing: -.5px; line-height: 1.4; }
+  .splash-line span { color: var(--orange); }
+  .splash-sub { margin-top: 14px; color: var(--grey); font-size: 13px; }
+  .splash-dots { display: flex; gap: 6px; margin-top: 48px; justify-content: center; }
+  .splash-dots span { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+  .splash-dots span.on { background: var(--orange); }
+  .btn-primary {
+    margin-top: 40px;
+    background: var(--orange);
+    color: #000;
+    font-weight: 700;
+    font-size: 15px;
+    border: none;
+    border-radius: 14px;
+    padding: 16px 48px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: .2px;
+  }
+  .btn-primary:hover { background: #e8851a; }
+
+  /* ══════════════════════════════════
+     SCREEN 2 — LANGUAGE
+  ══════════════════════════════════ */
+  #s-language {
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .lang-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .lang-sub { color: var(--grey); font-size: 13px; margin-bottom: 36px; }
+  .lang-options { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .lang-btn {
+    background: var(--card);
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    border-radius: 16px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: border-color .2s;
+    font-family: inherit;
+    text-align: left;
+  }
+  .lang-btn:hover, .lang-btn.selected { border-color: var(--orange); }
+  .lang-btn.selected { background: #1f1500; }
+  .lang-flag { font-size: 28px; }
+  .lang-info { flex: 1; }
+  .lang-name { font-size: 15px; font-weight: 600; }
+  .lang-hint { font-size: 12px; color: var(--grey); margin-top: 2px; }
+  .lang-check { color: var(--orange); font-size: 18px; opacity: 0; }
+  .lang-btn.selected .lang-check { opacity: 1; }
+
+  /* ══════════════════════════════════
+     SCREEN 3 — CONNECT WALLETS
+  ══════════════════════════════════ */
+  #s-connect { padding: 24px; }
+  .connect-header { margin-bottom: 28px; }
+  .connect-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .connect-header p { color: var(--grey); font-size: 13px; line-height: 1.5; }
+  .wallet-card {
+    background: var(--card);
+    border: 1px solid #2a2a2a;
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .wallet-card:hover { border-color: var(--orange); }
+  .wallet-card.connected { border-color: var(--teal); }
+  .wallet-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .wallet-icon.blink { background: #1a1a2e; }
+  .wallet-icon.fedi  { background: #1a2e1a; }
+  .wallet-icon.byok  { background: #1a1a1a; border: 1px solid #333; }
+  .wallet-info { flex: 1; }
+  .wallet-name { font-size: 15px; font-weight: 600; }
+  .wallet-desc { font-size: 12px; color: var(--grey); margin-top: 3px; }
+  .wallet-status {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .wallet-status.connected { background: #00291d; color: var(--teal); }
+  .wallet-status.pending   { background: #1f1500; color: var(--amber); }
+  .wallet-status.tap       { color: var(--grey); }
+  .skip-link { text-align: center; margin-top: 16px; color: var(--grey); font-size: 13px; cursor: pointer; }
+  .skip-link:hover { color: var(--orange); }
+
+  /* ══════════════════════════════════
+     SCREEN 4 — BLINK SETUP
+  ══════════════════════════════════ */
+  #s-blink { padding: 24px; }
+  .setup-back { color: var(--grey); font-size: 13px; cursor: pointer; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 6px; }
+  .setup-back:hover { color: #fff; }
+  .setup-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .setup-sub { color: var(--grey); font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+  .guide-steps { margin-bottom: 24px; }
+  .guide-step {
+    display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start;
+  }
+  .guide-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #1f1500;
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .guide-text { font-size: 13px; color: #ddd; line-height: 1.5; }
+  .guide-text a { color: var(--orange); text-decoration: none; }
+  .input-label { font-size: 12px; color: var(--grey); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .key-input {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .key-input:focus { border-color: var(--orange); }
+  .key-input::placeholder { color: #444; }
+  .key-input.valid { border-color: var(--teal); }
+  .input-hint { font-size: 11px; color: var(--grey); margin-top: 8px; }
+  .btn-connect {
+    width: 100%;
+    margin-top: 20px;
+    background: var(--orange);
+    color: #000;
+    font-weight: 700;
+    font-size: 15px;
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* ══════════════════════════════════
+     SCREEN 5 — LOADING / FETCHING
+  ══════════════════════════════════ */
+  #s-loading {
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .loading-symbol { font-size: 56px; color: var(--orange); margin-bottom: 24px; }
+  .loading-title { font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+  .loading-steps { width: 100%; text-align: left; }
+  .loading-step {
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 14px;
+  }
+  .loading-step:last-child { border-bottom: none; }
+  .lstep-icon { width: 24px; text-align: center; }
+  .lstep-text { flex: 1; }
+  .lstep-status { font-size: 12px; }
+  .lstep-status.done  { color: var(--teal); }
+  .lstep-status.going { color: var(--amber); }
+  .lstep-status.wait  { color: #333; }
+  .spinner { display: inline-block; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ══════════════════════════════════
+     SCREEN 6 — DASHBOARD
+  ══════════════════════════════════ */
+  #s-dashboard { overflow-y: auto; padding: 0 0 80px; }
+  .dash-header {
+    padding: 16px 20px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .dash-logo { font-size: 13px; font-weight: 700; color: var(--orange); letter-spacing: .5px; }
+  .dash-actions { display: flex; gap: 12px; }
+  .dash-icon-btn {
+    background: var(--card);
+    border: none; border-radius: 50%;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #fff; font-size: 16px;
+  }
+
+  .balance-section { padding: 20px 20px 0; }
+  .balance-label { font-size: 12px; color: var(--grey); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .balance-sats { font-size: 42px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+  .balance-sats span { color: var(--orange); font-size: 22px; font-weight: 400; margin-left: 4px; }
+  .balance-kes { font-size: 18px; color: var(--grey); margin-top: 6px; }
+  .balance-change { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 13px; padding: 4px 10px; border-radius: 20px; }
+  .balance-change.up   { background: #00291d; color: var(--teal); }
+  .balance-change.down { background: #2d0000; color: var(--red); }
+
+  .period-tabs {
+    display: flex; gap: 6px; padding: 20px 20px 0;
+  }
+  .period-tab {
+    background: #1a1a1a; border: none; border-radius: 20px;
+    color: var(--grey); font-size: 12px; padding: 6px 14px;
+    cursor: pointer; font-family: inherit;
+    transition: all .2s;
+  }
+  .period-tab.active { background: var(--orange); color: #000; font-weight: 700; }
+
+  /* mini chart */
+  .chart-wrap { padding: 16px 20px 0; }
+  .chart-svg { width: 100%; height: 100px; }
+
+  /* wallet breakdown */
+  .section-title { font-size: 12px; color: var(--grey); text-transform: uppercase; letter-spacing: .5px; padding: 20px 20px 10px; }
+  .wallet-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #161616;
+  }
+  .wr-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .wr-info { flex: 1; }
+  .wr-name { font-size: 14px; font-weight: 600; }
+  .wr-sub  { font-size: 12px; color: var(--grey); margin-top: 2px; }
+  .wr-amount { text-align: right; }
+  .wr-sats { font-size: 15px; font-weight: 700; }
+  .wr-kes  { font-size: 12px; color: var(--grey); margin-top: 2px; }
+
+  /* inflation card */
+  .inflation-card {
+    margin: 12px 20px;
+    background: #1a1500;
+    border: 1px solid #3a2a00;
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .inflation-title { font-size: 13px; font-weight: 600; color: var(--amber); margin-bottom: 8px; }
+  .inflation-body  { font-size: 13px; color: #ddd; line-height: 1.6; }
+  .inflation-body strong { color: var(--teal); }
+
+  /* ══════════════════════════════════
+     SCREEN 7 — TRANSACTIONS
+  ══════════════════════════════════ */
+  #s-txns { overflow-y: auto; padding: 0 0 80px; }
+  .txn-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+  .txn-back { color: var(--grey); cursor: pointer; font-size: 20px; }
+  .txn-title { font-size: 18px; font-weight: 700; flex: 1; }
+  .search-bar {
+    margin: 0 20px 16px;
+    display: flex; align-items: center;
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    border-radius: 12px; padding: 10px 14px; gap: 10px;
+  }
+  .search-bar input {
+    background: none; border: none; color: #fff;
+    font-size: 14px; outline: none; flex: 1; font-family: inherit;
+  }
+  .search-bar input::placeholder { color: #555; }
+  .filter-tabs { display: flex; gap: 6px; padding: 0 20px 16px; overflow-x: auto; }
+  .filter-tab {
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    color: var(--grey); font-size: 12px; border-radius: 20px;
+    padding: 5px 12px; white-space: nowrap; cursor: pointer;
+    font-family: inherit;
+  }
+  .filter-tab.active { border-color: var(--orange); color: var(--orange); }
+  .txn-day-label { padding: 10px 20px 4px; font-size: 11px; color: var(--grey); text-transform: uppercase; letter-spacing: .5px; }
+  .txn-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #141414;
+    cursor: pointer;
+  }
+  .txn-row:hover { background: #111; }
+  .txn-ico {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .txn-ico.in  { background: #00291d; }
+  .txn-ico.out { background: #2d0000; }
+  .txn-ico.sav { background: #1a1500; }
+  .txn-body { flex: 1; }
+  .txn-desc { font-size: 14px; font-weight: 500; }
+  .txn-meta { font-size: 11px; color: var(--grey); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+  .txn-tag { background: #1a1a1a; padding: 2px 7px; border-radius: 10px; font-size: 10px; }
+  .txn-amt { text-align: right; }
+  .txn-sats { font-size: 15px; font-weight: 700; }
+  .txn-sats.in  { color: var(--teal); }
+  .txn-sats.out { color: var(--red); }
+  .txn-kes { font-size: 11px; color: var(--grey); margin-top: 3px; }
+
+  /* ══════════════════════════════════
+     SCREEN 8 — AI CHAT
+  ══════════════════════════════════ */
+  #s-chat { display: flex; flex-direction: column; }
+  .chat-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #1a1a1a;
+    flex-shrink: 0;
+  }
+  .chat-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: #1f1500;
+    border: 2px solid var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .chat-title { flex: 1; }
+  .chat-name { font-size: 15px; font-weight: 700; }
+  .chat-status { font-size: 11px; color: var(--teal); }
+  .chat-lang { color: var(--grey); font-size: 12px; background: #1a1a1a; border: none; border-radius: 20px; padding: 5px 12px; font-family: inherit; cursor: pointer; }
+
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .msg { max-width: 85%; }
+  .msg.ai   { align-self: flex-start; }
+  .msg.user { align-self: flex-end; }
+  .msg-bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .msg.ai   .msg-bubble { background: var(--card); border-bottom-left-radius: 4px; }
+  .msg.user .msg-bubble { background: #1f1500; border: 1px solid #3a2a00; border-bottom-right-radius: 4px; }
+  .msg-time { font-size: 10px; color: var(--grey); margin-top: 4px; padding: 0 4px; }
+  .msg.user .msg-time { text-align: right; }
+
+  /* AI typing indicator */
+  .typing { display: flex; gap: 4px; padding: 12px 16px; background: var(--card); border-radius: 18px; border-bottom-left-radius: 4px; width: fit-content; }
+  .typing span { width: 7px; height: 7px; background: var(--grey); border-radius: 50%; animation: blink 1.2s ease-in-out infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,60%,100%{opacity:.3} 30%{opacity:1} }
+
+  .ai-stat-card {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .ai-stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1a1a1a; }
+  .ai-stat-row:last-child { border-bottom: none; }
+  .ai-stat-label { color: var(--grey); }
+  .ai-stat-val { font-weight: 600; }
+  .ai-stat-val.up { color: var(--teal); }
+
+  .chat-suggestions { padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; }
+  .suggestion {
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    color: #ccc; font-size: 12px; border-radius: 20px;
+    padding: 7px 14px; white-space: nowrap; cursor: pointer;
+    font-family: inherit; flex-shrink: 0;
+  }
+  .suggestion:hover { border-color: var(--orange); color: var(--orange); }
+
+  .chat-input-bar {
+    padding: 12px 16px 20px;
+    display: flex; gap: 10px; align-items: flex-end;
+    border-top: 1px solid #1a1a1a;
+    flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 22px;
+    padding: 12px 16px;
+    color: #fff; font-size: 14px;
+    outline: none; resize: none; font-family: inherit;
+    max-height: 100px;
+  }
+  .chat-input:focus { border-color: var(--orange); }
+  .chat-input::placeholder { color: #444; }
+  .send-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--orange); border: none;
+    color: #000; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: #e8851a; }
+
+  /* ══════════════════════════════════
+     BOTTOM NAV (screens 6-8)
+  ══════════════════════════════════ */
+  .bottom-nav {
+    position: sticky; bottom: 0;
+    background: #0D0D0D;
+    border-top: 1px solid #1a1a1a;
+    display: flex; padding: 10px 0 16px;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; cursor: pointer;
+    font-size: 10px; color: var(--grey);
+    background: none; border: none; font-family: inherit;
+    padding: 0;
+  }
+  .nav-item.active { color: var(--orange); }
+  .nav-icon { font-size: 20px; }
+
+  /* ══════════════════════════════════
+     SCREEN 9 — TX DETAIL (AI explanation)
+  ══════════════════════════════════ */
+  #s-txdetail { overflow-y: auto; padding: 0 0 40px; }
+  .txd-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+  .txd-back { color: var(--grey); cursor: pointer; font-size: 20px; }
+  .txd-title { font-size: 18px; font-weight: 700; }
+  .txd-hero {
+    text-align: center; padding: 28px 24px;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .txd-direction { font-size: 12px; color: var(--grey); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .txd-amount { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; }
+  .txd-amount.in  { color: var(--teal); }
+  .txd-amount.out { color: var(--red); }
+  .txd-kes { font-size: 18px; color: var(--grey); margin-top: 6px; }
+  .txd-rows { padding: 20px; }
+  .txd-row { display: flex; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid #161616; font-size: 14px; }
+  .txd-row:last-child { border-bottom: none; }
+  .txd-key { color: var(--grey); }
+  .txd-val { font-weight: 500; text-align: right; }
+  .ai-explain-box {
+    margin: 0 20px;
+    background: #1a1500;
+    border: 1px solid #3a2a00;
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .ai-explain-label { font-size: 11px; color: var(--amber); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; display: flex; gap: 6px; align-items: center; }
+  .ai-explain-text { font-size: 14px; line-height: 1.6; color: #ddd; }
+
+  /* ══════════════════════════════════
+     SCREEN 10 — SETTINGS / WALLETS
+  ══════════════════════════════════ */
+  #s-settings { overflow-y: auto; padding: 0 0 80px; }
+  .settings-header { padding: 16px 20px 0; }
+  .settings-title { font-size: 22px; font-weight: 700; }
+  .settings-section { margin-top: 24px; }
+  .settings-section-label { font-size: 11px; color: var(--grey); text-transform: uppercase; letter-spacing: .5px; padding: 0 20px 8px; }
+  .settings-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #141414;
+    cursor: pointer;
+  }
+  .settings-row:hover { background: #111; }
+  .settings-row-icon { font-size: 20px; width: 28px; text-align: center; }
+  .settings-row-info { flex: 1; }
+  .settings-row-label { font-size: 14px; font-weight: 500; }
+  .settings-row-sub { font-size: 12px; color: var(--grey); margin-top: 2px; }
+  .settings-row-action { color: var(--grey); font-size: 18px; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+  .badge.connected { background: #00291d; color: var(--teal); }
+  .badge.read-only  { background: #1a1a1a; color: var(--grey); }
+
+  /* ══════════════════════════════════
+     ANNOTATION STRIP (outside phone)
+  ══════════════════════════════════ */
+  .annotation {
+    width: 360px;
+    margin-top: 16px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 12px;
+    color: var(--grey);
+    line-height: 1.6;
+  }
+  .annotation strong { color: var(--orange); }
+
+  h1.wf-title { font-size: 13px; color: var(--grey); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1 class="wf-title">₿ Afribit SATS — Interactive Wireframe v0.1</h1>
+
+<nav class="screen-nav">
+  <button class="active" onclick="show('splash',this)">1. Splash</button>
+  <button onclick="show('language',this)">2. Language</button>
+  <button onclick="show('connect',this)">3. Connect Wallets</button>
+  <button onclick="show('blink',this)">4. Blink Setup</button>
+  <button onclick="show('loading',this)">5. Fetching Data</button>
+  <button onclick="show('dashboard',this)">6. Dashboard</button>
+  <button onclick="show('txns',this)">7. Transactions</button>
+  <button onclick="show('chat',this)">8. AI Chat</button>
+  <button onclick="show('txdetail',this)">9. TX Detail</button>
+  <button onclick="show('settings',this)">10. Settings</button>
+</nav>
+
+<div class="phone">
+  <div class="status-bar"><span>9:41</span><span>●●●  WiFi  🔋</span></div>
+
+  <!-- ══ SCREEN 1: SPLASH ══ -->
+  <div id="s-splash" class="screen active">
+    <div class="splash-symbol">₿</div>
+    <div class="splash-line">Your Bitcoin world.<br><span>Every wallet.</span><br>One conversation.</div>
+    <div class="splash-sub">Powered by Afribit Africa</div>
+    <div class="splash-dots">
+      <span class="on"></span><span></span><span></span>
+    </div>
+    <button class="btn-primary" onclick="show('language', document.querySelectorAll('.screen-nav button')[1])">Get Started</button>
+  </div>
+
+  <!-- ══ SCREEN 2: LANGUAGE ══ -->
+  <div id="s-language" class="screen">
+    <div class="splash-symbol" style="font-size:42px; margin-bottom:0; animation:none;">₿</div>
+    <div class="lang-title" style="margin-top:16px;">Choose your language</div>
+    <div class="lang-sub">You can change this any time in Settings</div>
+    <div class="lang-options">
+      <button class="lang-btn" onclick="selectLang(this)">
+        <span class="lang-flag">🇺🇸</span>
+        <div class="lang-info"><div class="lang-name">English</div><div class="lang-hint">International</div></div>
+        <span class="lang-check">✓</span>
+      </button>
+      <button class="lang-btn selected" onclick="selectLang(this)">
+        <span class="lang-flag">🇰🇪</span>
+        <div class="lang-info"><div class="lang-name">Kiswahili</div><div class="lang-hint">Swahili — Kenya</div></div>
+        <span class="lang-check">✓</span>
+      </button>
+      <button class="lang-btn" onclick="selectLang(this)">
+        <span class="lang-flag">🏙️</span>
+        <div class="lang-info"><div class="lang-name">Sheng</div><div class="lang-hint">Nairobi street language</div></div>
+        <span class="lang-check">✓</span>
+      </button>
+    </div>
+    <button class="btn-primary" style="margin-top:28px;" onclick="show('connect', document.querySelectorAll('.screen-nav button')[2])">Endelea →</button>
+  </div>
+
+  <!-- ══ SCREEN 3: CONNECT WALLETS ══ -->
+  <div id="s-connect" class="screen">
+    <div class="connect-header">
+      <h2>Unganisha pochi zako</h2>
+      <p>Connect your Bitcoin wallets. Your keys never leave your device.</p>
+    </div>
+    <div class="wallet-card connected" onclick="show('blink', document.querySelectorAll('.screen-nav button')[3])">
+      <div class="wallet-icon blink">⚡</div>
+      <div class="wallet-info">
+        <div class="wallet-name">Blink Wallet</div>
+        <div class="wallet-desc">Lightning payments — via read-only API key</div>
+      </div>
+      <span class="wallet-status connected">Connected</span>
+    </div>
+    <div class="wallet-card" onclick="show('blink', document.querySelectorAll('.screen-nav button')[3])">
+      <div class="wallet-icon fedi">🛡️</div>
+      <div class="wallet-info">
+        <div class="wallet-name">Fedi / Fedimint</div>
+        <div class="wallet-desc">Community savings — via federation invite code</div>
+      </div>
+      <span class="wallet-status tap">Tap to connect →</span>
+    </div>
+    <div class="wallet-card" onclick="show('blink', document.querySelectorAll('.screen-nav button')[3])">
+      <div class="wallet-icon byok">🔑</div>
+      <div class="wallet-info">
+        <div class="wallet-name">Other Wallet (BYOK)</div>
+        <div class="wallet-desc">Paste your own Lightning API endpoint + key</div>
+      </div>
+      <span class="wallet-status tap">Tap to connect →</span>
+    </div>
+    <div class="skip-link" onclick="show('loading', document.querySelectorAll('.screen-nav button')[4])">Continue with connected wallets →</div>
+  </div>
+
+  <!-- ══ SCREEN 4: BLINK SETUP ══ -->
+  <div id="s-blink" class="screen" style="overflow-y:auto; padding-bottom:40px;">
+    <div style="padding:24px;">
+      <div class="setup-back" onclick="show('connect', document.querySelectorAll('.screen-nav button')[2])">← Back</div>
+      <div class="setup-title">⚡ Connect Blink</div>
+      <div class="setup-sub">You need a read-only API key from your Blink account. It takes 30 seconds.</div>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <div class="guide-num">1</div>
+          <div class="guide-text">Open <a href="#">dashboard.blink.sv</a> in your browser and log in to your Blink account.</div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">2</div>
+          <div class="guide-text">Go to <strong>Security → API Keys</strong>. Tap <strong>Create New Key</strong>. Select <strong>Read</strong> scope only.</div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">3</div>
+          <div class="guide-text">Copy the key (starts with <code style="color:var(--orange)">blink_</code>) and paste it below.</div>
+        </div>
+      </div>
+      <div class="input-label">Your Blink Read-Only API Key</div>
+      <input class="key-input valid" type="text" placeholder="blink_••••••••••••••••••••••" value="blink_rk_••••••••••••••••••" />
+      <div class="input-hint">🔒 Encrypted and stored on this device only. Never sent to Afribit servers.</div>
+      <button class="btn-connect" onclick="show('loading', document.querySelectorAll('.screen-nav button')[4])">Connect Blink Wallet</button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 5: LOADING ══ -->
+  <div id="s-loading" class="screen">
+    <div class="loading-symbol">₿</div>
+    <div class="loading-title">Fetching your Bitcoin world...</div>
+    <div class="loading-steps">
+      <div class="loading-step">
+        <div class="lstep-icon">⚡</div>
+        <div class="lstep-text">Connecting to Blink...</div>
+        <div class="lstep-status done">✓ Done</div>
+      </div>
+      <div class="loading-step">
+        <div class="lstep-icon">📋</div>
+        <div class="lstep-text">Loading transaction history...</div>
+        <div class="lstep-status done">✓ Done</div>
+      </div>
+      <div class="loading-step">
+        <div class="lstep-icon">🛡️</div>
+        <div class="lstep-text">Connecting to Fedi federation...</div>
+        <div class="lstep-status done">✓ Done</div>
+      </div>
+      <div class="loading-step">
+        <div class="lstep-icon">📈</div>
+        <div class="lstep-text">Fetching BTC/KES rate...</div>
+        <div class="lstep-status going"><span class="spinner">⟳</span> Loading</div>
+      </div>
+      <div class="loading-step">
+        <div class="lstep-icon">🤖</div>
+        <div class="lstep-text">Building your financial picture...</div>
+        <div class="lstep-status wait">Waiting</div>
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:32px;" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">View Dashboard →</button>
+  </div>
+
+  <!-- ══ SCREEN 6: DASHBOARD ══ -->
+  <div id="s-dashboard" class="screen">
+    <div class="dash-header">
+      <div class="dash-logo">AFRIBIT SATS</div>
+      <div class="dash-actions">
+        <button class="dash-icon-btn" onclick="show('chat', document.querySelectorAll('.screen-nav button')[7])">💬</button>
+        <button class="dash-icon-btn" onclick="show('settings', document.querySelectorAll('.screen-nav button')[9])">⚙️</button>
+      </div>
+    </div>
+
+    <div class="balance-section">
+      <div class="balance-label">Total Portfolio</div>
+      <div class="balance-sats">284,500 <span>sats</span></div>
+      <div class="balance-kes">≈ KES 15,230</div>
+      <span class="balance-change up">▲ +16.2% this month</span>
+    </div>
+
+    <div class="period-tabs">
+      <button class="period-tab">7D</button>
+      <button class="period-tab active">30D</button>
+      <button class="period-tab">90D</button>
+      <button class="period-tab">All</button>
+    </div>
+
+    <!-- SVG Sparkline chart -->
+    <div class="chart-wrap">
+      <svg class="chart-svg" viewBox="0 0 320 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F7931A" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="#F7931A" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,80 L40,72 L80,68 L120,60 L160,55 L200,42 L240,38 L280,28 L320,18"
+              fill="none" stroke="#F7931A" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M0,80 L40,72 L80,68 L120,60 L160,55 L200,42 L240,38 L280,28 L320,18 L320,100 L0,100 Z"
+              fill="url(#chartGrad)"/>
+        <!-- dot at end -->
+        <circle cx="320" cy="18" r="4" fill="#F7931A"/>
+      </svg>
+    </div>
+
+    <div class="section-title">Wallets</div>
+
+    <div class="wallet-row">
+      <div class="wr-icon blink" style="background:#1a1a2e; border-radius:12px;">⚡</div>
+      <div class="wr-info">
+        <div class="wr-name">Blink Business</div>
+        <div class="wr-sub">Lightning · Read-only</div>
+      </div>
+      <div class="wr-amount">
+        <div class="wr-sats">182,300 sats</div>
+        <div class="wr-kes">KES 9,753</div>
+      </div>
+    </div>
+
+    <div class="wallet-row">
+      <div class="wr-icon fedi" style="background:#1a2e1a; border-radius:12px;">🛡️</div>
+      <div class="wr-info">
+        <div class="wr-name">My Fedi Chama</div>
+        <div class="wr-sub">Fedimint · Read-only</div>
+      </div>
+      <div class="wr-amount">
+        <div class="wr-sats">102,200 sats</div>
+        <div class="wr-kes">KES 5,477</div>
+      </div>
+    </div>
+
+    <div class="inflation-card">
+      <div class="inflation-title">🔥 Inflation Shield</div>
+      <div class="inflation-body">Your 284,500 sats from 30 days ago in KES savings would be worth <strong>KES 13,110 today</strong> — that's <strong>KES 2,120 less</strong> than your current sats value. Bitcoin preserved your purchasing power.</div>
+    </div>
+
+    <div class="section-title">Recent Activity</div>
+    <div class="txn-row" onclick="show('txdetail', document.querySelectorAll('.screen-nav button')[8])">
+      <div class="txn-ico in">↓</div>
+      <div class="txn-body">
+        <div class="txn-desc">Lightning payment received</div>
+        <div class="txn-meta"><span>Blink</span><span class="txn-tag">Income</span><span>Today 2:14 PM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats in">+8,500</div><div class="txn-kes">KES 453</div></div>
+    </div>
+    <div class="txn-row">
+      <div class="txn-ico sav">💾</div>
+      <div class="txn-body">
+        <div class="txn-desc">Chama savings contribution</div>
+        <div class="txn-meta"><span>Fedi</span><span class="txn-tag">Savings</span><span>Yesterday</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats out">-10,000</div><div class="txn-kes">KES 535</div></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">
+        <span class="nav-icon">🏠</span>Home
+      </button>
+      <button class="nav-item" onclick="show('txns', document.querySelectorAll('.screen-nav button')[6])">
+        <span class="nav-icon">📋</span>History
+      </button>
+      <button class="nav-item" onclick="show('chat', document.querySelectorAll('.screen-nav button')[7])">
+        <span class="nav-icon">💬</span>AI Chat
+      </button>
+      <button class="nav-item" onclick="show('settings', document.querySelectorAll('.screen-nav button')[9])">
+        <span class="nav-icon">⚙️</span>Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 7: TRANSACTIONS ══ -->
+  <div id="s-txns" class="screen">
+    <div class="txn-header">
+      <span class="txn-back" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">←</span>
+      <span class="txn-title">Transactions</span>
+    </div>
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" placeholder="Search by amount, date, wallet..." />
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active">All</button>
+      <button class="filter-tab">⚡ Blink</button>
+      <button class="filter-tab">🛡️ Fedi</button>
+      <button class="filter-tab">↓ Received</button>
+      <button class="filter-tab">↑ Sent</button>
+      <button class="filter-tab">🏷️ Taka Sats</button>
+    </div>
+
+    <div class="txn-day-label">Today — Mon, 1 June 2026</div>
+    <div class="txn-row" onclick="show('txdetail', document.querySelectorAll('.screen-nav button')[8])">
+      <div class="txn-ico in">↓</div>
+      <div class="txn-body">
+        <div class="txn-desc">Lightning payment received</div>
+        <div class="txn-meta"><span>Blink</span><span class="txn-tag">Income</span><span>2:14 PM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats in">+8,500</div><div class="txn-kes">KES 453</div></div>
+    </div>
+    <div class="txn-row">
+      <div class="txn-ico in">↓</div>
+      <div class="txn-body">
+        <div class="txn-desc">Sale — vegetables</div>
+        <div class="txn-meta"><span>Blink</span><span class="txn-tag">Income</span><span>10:02 AM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats in">+3,200</div><div class="txn-kes">KES 171</div></div>
+    </div>
+
+    <div class="txn-day-label">Yesterday — Sun, 31 May</div>
+    <div class="txn-row">
+      <div class="txn-ico sav">💾</div>
+      <div class="txn-body">
+        <div class="txn-desc">Chama contribution</div>
+        <div class="txn-meta"><span>Fedi</span><span class="txn-tag">Savings</span><span>4:00 PM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats out">-10,000</div><div class="txn-kes">KES 535</div></div>
+    </div>
+    <div class="txn-row">
+      <div class="txn-ico in">🏷️</div>
+      <div class="txn-body">
+        <div class="txn-desc">Taka Sats reward</div>
+        <div class="txn-meta"><span>Blink</span><span class="txn-tag">Program</span><span>1:30 PM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats in">+1,500</div><div class="txn-kes">KES 80</div></div>
+    </div>
+
+    <div class="txn-day-label">Sat, 30 May</div>
+    <div class="txn-row">
+      <div class="txn-ico in">↓</div>
+      <div class="txn-body">
+        <div class="txn-desc">Lightning payment received</div>
+        <div class="txn-meta"><span>Blink</span><span class="txn-tag">Income</span><span>3:45 PM</span></div>
+      </div>
+      <div class="txn-amt"><div class="txn-sats in">+5,000</div><div class="txn-kes">KES 267</div></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">
+        <span class="nav-icon">🏠</span>Home
+      </button>
+      <button class="nav-item active" onclick="show('txns', document.querySelectorAll('.screen-nav button')[6])">
+        <span class="nav-icon">📋</span>History
+      </button>
+      <button class="nav-item" onclick="show('chat', document.querySelectorAll('.screen-nav button')[7])">
+        <span class="nav-icon">💬</span>AI Chat
+      </button>
+      <button class="nav-item" onclick="show('settings', document.querySelectorAll('.screen-nav button')[9])">
+        <span class="nav-icon">⚙️</span>Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 8: AI CHAT ══ -->
+  <div id="s-chat" class="screen">
+    <div class="chat-header">
+      <div class="chat-avatar">🤖</div>
+      <div class="chat-title">
+        <div class="chat-name">SATS AI</div>
+        <div class="chat-status">● Online · Claude Haiku 4.5</div>
+      </div>
+      <button class="chat-lang">🇰🇪 Swahili</button>
+    </div>
+
+    <div class="chat-messages">
+      <div class="msg ai">
+        <div class="msg-bubble">Habari! Mimi ni msaidizi wako wa Bitcoin. Nina habari za pochi zako zote. Unaweza kuniuliza chochote kuhusu sats zako, manunuzi, au Bitcoin. 💛</div>
+        <div class="msg-time">9:00 AM</div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-bubble">Nina ngapi leo?</div>
+        <div class="msg-time">9:41 AM</div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-bubble">
+          Una jumla ya <strong style="color:var(--orange)">sats 284,500</strong> leo kwenye pochi zako zote mbili.
+          <div class="ai-stat-card">
+            <div class="ai-stat-row"><span class="ai-stat-label">⚡ Blink Business</span><span class="ai-stat-val">182,300 sats</span></div>
+            <div class="ai-stat-row"><span class="ai-stat-label">🛡️ Fedi Chama</span><span class="ai-stat-val">102,200 sats</span></div>
+            <div class="ai-stat-row"><span class="ai-stat-label">💵 Thamani (KES)</span><span class="ai-stat-val up">KES 15,230</span></div>
+            <div class="ai-stat-row"><span class="ai-stat-label">📈 Mwezi huu</span><span class="ai-stat-val up">+16.2% ↑</span></div>
+          </div>
+        </div>
+        <div class="msg-time">9:41 AM</div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-bubble">Je, niliokoa kiasi gani mwezi huu?</div>
+        <div class="msg-time">9:42 AM</div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-bubble">Umehifadhi <strong style="color:var(--teal)">sats 45,200</strong> mwezi huu kupitia Fedi — sawa na <strong style="color:var(--teal)">KES 2,410</strong> leo. Mwezi uliopita ulikuwa KES 2,180 kwa kiasi kile kile cha sats — umeongeza thamani kwa <strong style="color:var(--orange)">10%</strong> kwa sababu ya mabadiliko ya Bitcoin. 🔥</div>
+        <div class="msg-time">9:42 AM</div>
+      </div>
+
+      <div class="msg ai">
+        <div class="typing"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="chat-suggestions">
+      <button class="suggestion">Malipo ya wiki hii?</button>
+      <button class="suggestion">Explain inflation</button>
+      <button class="suggestion">Biggest payment?</button>
+      <button class="suggestion">What is Lightning?</button>
+    </div>
+
+    <div class="chat-input-bar">
+      <textarea class="chat-input" rows="1" placeholder="Uliza swali lolote..."></textarea>
+      <button class="send-btn">↑</button>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">
+        <span class="nav-icon">🏠</span>Home
+      </button>
+      <button class="nav-item" onclick="show('txns', document.querySelectorAll('.screen-nav button')[6])">
+        <span class="nav-icon">📋</span>History
+      </button>
+      <button class="nav-item active">
+        <span class="nav-icon">💬</span>AI Chat
+      </button>
+      <button class="nav-item" onclick="show('settings', document.querySelectorAll('.screen-nav button')[9])">
+        <span class="nav-icon">⚙️</span>Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 9: TX DETAIL ══ -->
+  <div id="s-txdetail" class="screen">
+    <div class="txd-header">
+      <span class="txd-back" onclick="show('txns', document.querySelectorAll('.screen-nav button')[6])">←</span>
+      <span class="txd-title">Transaction Detail</span>
+    </div>
+    <div class="txd-hero">
+      <div class="txd-direction">Received · Blink Wallet</div>
+      <div class="txd-amount in">+8,500 sats</div>
+      <div class="txd-kes">≈ KES 453 today</div>
+    </div>
+    <div class="txd-rows">
+      <div class="txd-row"><span class="txd-key">Date & Time</span><span class="txd-val">Mon 1 Jun 2026, 2:14 PM</span></div>
+      <div class="txd-row"><span class="txd-key">Wallet</span><span class="txd-val">⚡ Blink Business</span></div>
+      <div class="txd-row"><span class="txd-key">Type</span><span class="txd-val">Lightning · Inbound</span></div>
+      <div class="txd-row"><span class="txd-key">Memo</span><span class="txd-val" style="color:var(--grey)">No label</span></div>
+      <div class="txd-row"><span class="txd-key">KES rate at time</span><span class="txd-val">KES 53.14 / sat</span></div>
+      <div class="txd-row"><span class="txd-key">KES value at time</span><span class="txd-val">≈ KES 452</span></div>
+      <div class="txd-row"><span class="txd-key">KES value now</span><span class="txd-val" style="color:var(--teal)">KES 453 (+0.2%)</span></div>
+    </div>
+    <div class="ai-explain-box">
+      <div class="ai-explain-label">🤖 AI EXPLANATION</div>
+      <div class="ai-explain-text">This was your largest incoming payment today — 8,500 sats arrived at 2:14 PM in your Blink wallet. No memo was attached, so it could be a customer payment or a transfer. At the time of receipt it was worth KES 452; it's worth KES 453 now — Bitcoin held its value. Want to add a note so you remember what this was for?</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 10: SETTINGS ══ -->
+  <div id="s-settings" class="screen">
+    <div class="settings-header">
+      <div class="settings-title">Settings</div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Wallets</div>
+      <div class="settings-row">
+        <span class="settings-row-icon">⚡</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Blink Business</div>
+          <div class="settings-row-sub">Connected · Last synced 2 min ago</div>
+        </div>
+        <span class="badge connected">Read-only</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-icon">🛡️</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">My Fedi Chama</div>
+          <div class="settings-row-sub">Connected · Runs in browser</div>
+        </div>
+        <span class="badge connected">Read-only</span>
+      </div>
+      <div class="settings-row" style="cursor:pointer; color:var(--orange);">
+        <span class="settings-row-icon">＋</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label" style="color:var(--orange)">Add another wallet</div>
+          <div class="settings-row-sub">Blink, Fedi, or custom API</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Preferences</div>
+      <div class="settings-row">
+        <span class="settings-row-icon">🌐</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Language</div>
+          <div class="settings-row-sub">Kiswahili</div>
+        </div>
+        <span class="settings-row-action">›</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-icon">💱</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Currency Display</div>
+          <div class="settings-row-sub">KES + sats</div>
+        </div>
+        <span class="settings-row-action">›</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Data & Privacy</div>
+      <div class="settings-row">
+        <span class="settings-row-icon">📥</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Export Transactions</div>
+          <div class="settings-row-sub">Download as CSV</div>
+        </div>
+        <span class="settings-row-action">›</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-icon">🗑️</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Disconnect All Wallets</div>
+          <div class="settings-row-sub">Clears all keys from this device</div>
+        </div>
+        <span class="settings-row-action" style="color:var(--red)">›</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">About</div>
+      <div class="settings-row">
+        <span class="settings-row-icon">ℹ️</span>
+        <div class="settings-row-info">
+          <div class="settings-row-label">Afribit SATS</div>
+          <div class="settings-row-sub">Version 1.0 · Phase 1 (MVP) · MIT License</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="show('dashboard', document.querySelectorAll('.screen-nav button')[5])">
+        <span class="nav-icon">🏠</span>Home
+      </button>
+      <button class="nav-item" onclick="show('txns', document.querySelectorAll('.screen-nav button')[6])">
+        <span class="nav-icon">📋</span>History
+      </button>
+      <button class="nav-item" onclick="show('chat', document.querySelectorAll('.screen-nav button')[7])">
+        <span class="nav-icon">💬</span>AI Chat
+      </button>
+      <button class="nav-item active">
+        <span class="nav-icon">⚙️</span>Settings
+      </button>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<!-- Annotation -->
+<div class="annotation" id="annotation">
+  <strong>Screen 1 — Splash / Onboarding Entry</strong><br>
+  Pure black background. ₿ symbol pulses once in Bitcoin orange. Tagline reveals word-by-word (animated in production). Single CTA leads to language selection. No account required.
+</div>
+
+<script>
+const annotations = {
+  splash:    '<strong>Screen 1 — Splash</strong><br>Pure black. ₿ pulses in Bitcoin orange. Tagline animates word-by-word (Gemini-style). Single CTA. No login, no account.',
+  language:  '<strong>Screen 2 — Language Selection</strong><br>Three options: English, Kiswahili, Sheng. Selection persists in localStorage. Swahili pre-selected as default for Kibera context. Button label switches to selected language immediately.',
+  connect:   '<strong>Screen 3 — Connect Wallets</strong><br>Wallet cards slide up. Blink shown as already connected (demo state). Fedi and BYOK available. Keys NEVER leave the device — enforced at architecture level, not just UI.',
+  blink:     '<strong>Screen 4 — Blink Wallet Setup</strong><br>Inline 3-step guide so users never leave the app. Key input uses monospace font. Green border confirms valid format (starts with "blink_"). Key encrypted with AES-GCM before IndexedDB storage.',
+  loading:   '<strong>Screen 5 — Data Fetch / Loading</strong><br>Real-time step labels so users know what\'s happening. Fedimint WASM loads lazily here (only when Fedi connected). Progress gives confidence before the dashboard reveal.',
+  dashboard: '<strong>Screen 6 — Unified Dashboard</strong><br>Total portfolio in sats + KES. 30-day sparkline chart (Recharts SVG). Per-wallet breakdown. Inflation shield card shows KES purchasing power delta. Bottom nav is persistent.',
+  txns:      '<strong>Screen 7 — Transaction Feed</strong><br>Unified chronological feed across all wallets. Search bar + filter chips by wallet, direction, category. Day-grouped. Tap any row → TX Detail + AI explanation.',
+  chat:      '<strong>Screen 8 — AI Chat</strong><br>Claude Haiku 4.5 for simple queries, Sonnet 4.6 for analytics. Language badge shows active language. Suggested prompts in Swahili. AI card format for structured data. Typing indicator during response.',
+  txdetail:  '<strong>Screen 9 — Transaction Detail</strong><br>Full breakdown: sats, KES at time of tx, KES today (value change). AI explanation in natural language below. Prompt to add a memo if missing. Phase 1: read-only, no actions.',
+  settings:  '<strong>Screen 10 — Settings</strong><br>Wallet management (connect/disconnect). Language switcher. CSV export. Disconnect All wipes encrypted keys from IndexedDB + device secret from localStorage. Version info.',
+};
+
+function show(id, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('s-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('annotation').innerHTML = annotations[id] || '';
+}
+
+function selectLang(btn) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+</script>
+
+</body>
+</html>
