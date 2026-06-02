@@ -6,7 +6,7 @@ import { Shield, Check } from '../../components/ui/Icons'
 import { api, type ConnectorManifest } from '../../lib/api'
 import ConnectorCard from '../ConnectorCard'
 
-const GITHUB_URL = 'https://github.com/afribit/sats-connectors'
+const GITHUB_URL = 'https://github.com/novyrix/sats-connectors'
 
 const STEPS = [
   {

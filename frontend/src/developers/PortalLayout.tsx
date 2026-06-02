@@ -2,12 +2,13 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { BitcoinMark } from '../components/ui/Icons'
 
-const GITHUB_URL = 'https://github.com/afribit/sats-connectors'
+const GITHUB_URL = 'https://github.com/novyrix/sats-connectors'
 
 const NAV = [
   { to: '/developers', label: 'Overview', exact: true },
   { to: '/developers/connectors', label: 'Connectors', exact: false },
   { to: '/developers/spec', label: 'Spec', exact: false },
+  { to: '/developers/docs', label: 'Docs', exact: false },
   { to: '/developers/playground', label: 'Playground', exact: false },
   { to: '/developers/status', label: 'Status', exact: false },
   { to: '/developers/submit', label: 'Submit', exact: false },
@@ -86,7 +87,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
           </p>
           <p className="text-13 text-white/45 font-text">
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-white/70">
-              github.com/afribit/sats-connectors
+              github.com/novyrix/sats-connectors
             </a>{' '}
             · MIT License
           </p>

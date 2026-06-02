@@ -12,7 +12,7 @@ import {
   StatusBadge,
 } from '../shared'
 
-const GITHUB_URL = 'https://github.com/afribit/sats-connectors'
+const GITHUB_URL = 'https://github.com/novyrix/sats-connectors'
 const TABS = ['Overview', 'API Reference', 'Changelog', 'Issues'] as const
 type Tab = (typeof TABS)[number]
 

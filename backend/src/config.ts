@@ -74,7 +74,7 @@ export const config = {
 
   github: {
     token: optional('GITHUB_TOKEN', ''),
-    repo:  optional('GITHUB_SUBMISSIONS_REPO', 'afribit/sats-connectors'),
+    repo:  optional('GITHUB_SUBMISSIONS_REPO', 'novyrix/sats-connectors'),
   },
 
   portalUrl: optional('PORTAL_URL', 'https://app.afribit.africa'),

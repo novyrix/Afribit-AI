@@ -7,6 +7,7 @@ import Spec from './pages/Spec'
 import Playground from './pages/Playground'
 import Status from './pages/Status'
 import Submit from './pages/Submit'
+import Docs from './pages/Docs'
 
 export default function DevPortal() {
   return (
@@ -17,6 +18,7 @@ export default function DevPortal() {
           <Route path="/developers/connectors" element={<Directory />} />
           <Route path="/developers/connectors/:id" element={<ConnectorDetail />} />
           <Route path="/developers/spec" element={<Spec />} />
+          <Route path="/developers/docs" element={<Docs />} />
           <Route path="/developers/playground" element={<Playground />} />
           <Route path="/developers/status" element={<Status />} />
           <Route path="/developers/submit" element={<Submit />} />
