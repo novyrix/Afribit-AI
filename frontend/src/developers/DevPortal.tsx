@@ -6,6 +6,7 @@ import ConnectorDetail from './pages/ConnectorDetail'
 import Spec from './pages/Spec'
 import Playground from './pages/Playground'
 import Status from './pages/Status'
+import Submit from './pages/Submit'
 
 export default function DevPortal() {
   return (
@@ -18,6 +19,7 @@ export default function DevPortal() {
           <Route path="/developers/spec" element={<Spec />} />
           <Route path="/developers/playground" element={<Playground />} />
           <Route path="/developers/status" element={<Status />} />
+          <Route path="/developers/submit" element={<Submit />} />
           <Route path="*" element={<Navigate to="/developers" replace />} />
         </Routes>
       </PortalLayout>

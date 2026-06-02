@@ -125,6 +125,34 @@ export type ConnectorHealthResponse = {
   checkedAt: number
 }
 
+export type SubmitConfig = {
+  emailEnabled: boolean
+  githubEnabled: boolean
+}
+
+export type ConnectorSubmission = {
+  emailToken: string
+  name: string
+  githubUsername: string
+  organization?: string
+  repoUrl: string
+  connectorId: string
+  category: 'wallet' | 'exchange' | 'on-ramp' | 'data'
+  working: 'yes' | 'in_progress'
+  rationale: string
+  declarations: {
+    readOnly: boolean
+    testsPass: boolean
+    maintain: boolean
+    terms: boolean
+  }
+}
+
+export type SubmissionResult = {
+  issueUrl: string
+  issueNumber: number
+}
+
 async function json<T>(res: Response): Promise<T> {
   const text = await res.text()
   let data: any = null
@@ -320,5 +348,37 @@ export const api = {
   async getConnectorHealth() {
     const res = await fetch(`${API_URL}/connectors/health`)
     return json<ConnectorHealthResponse>(res)
+  },
+
+  async getSubmitConfig() {
+    const res = await fetch(`${API_URL}/connectors/submit/config`)
+    return json<SubmitConfig>(res)
+  },
+
+  async sendSubmitCode(email: string) {
+    const res = await fetch(`${API_URL}/connectors/submit/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    return json<{ ok: boolean }>(res)
+  },
+
+  async verifySubmitCode(email: string, code: string) {
+    const res = await fetch(`${API_URL}/connectors/submit/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    })
+    return json<{ emailToken: string }>(res)
+  },
+
+  async submitConnector(payload: ConnectorSubmission) {
+    const res = await fetch(`${API_URL}/connectors/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return json<SubmissionResult>(res)
   },
 }

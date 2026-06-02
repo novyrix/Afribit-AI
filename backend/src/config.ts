@@ -62,4 +62,20 @@ export const config = {
   encryption: {
     key: optional('ENCRYPTION_KEY', ''),
   },
+
+  smtp: {
+    host:   optional('SMTP_HOST', ''),
+    port:   parseInt(optional('SMTP_PORT', '465'), 10),
+    secure: optional('SMTP_SECURE', 'true') === 'true',
+    user:   optional('SMTP_USER', ''),
+    pass:   optional('SMTP_PASS', ''),
+    from:   optional('SMTP_FROM', 'Afribit SATS <eddie@afribit.africa>'),
+  },
+
+  github: {
+    token: optional('GITHUB_TOKEN', ''),
+    repo:  optional('GITHUB_SUBMISSIONS_REPO', 'afribit/sats-connectors'),
+  },
+
+  portalUrl: optional('PORTAL_URL', 'https://app.afribit.africa'),
 } as const;
