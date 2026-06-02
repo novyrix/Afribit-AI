@@ -231,7 +231,7 @@ export const inflationApi = {
 
   async getLatestReport(communityId: string) {
     const res = await fetch(`${BASE}/inflation/reports/latest?community_id=${communityId}`)
-    return json<{ month: string | null; items: ReportItem[]; adoption: ReportAdoption | null }>(res)
+    return json<{ month: string | null; items: ReportItem[]; prevItems?: { item_name: string; avg_kes_per_unit: number }[]; adoption: ReportAdoption | null }>(res)
   },
 
   async getReport(communityId: string, month: string) {

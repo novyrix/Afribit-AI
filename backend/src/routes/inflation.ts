@@ -452,18 +452,31 @@ router.get('/reports/latest', async (req, res) => {
        FROM inflation_purchases WHERE community_id = $1 AND verification_status != 'rejected'`,
       [communityId]
     );
-    if (!latest?.month) { res.json({ month: null, items: [], adoption: null }); return; }
-    const [items, adoption] = await Promise.all([
+    if (!latest?.month) { res.json({ month: null, items: [], prevItems: [], adoption: null }); return; }
+
+    const prevDate = new Date(`${latest.month}-01`);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonth = prevDate.toISOString().slice(0, 7);
+
+    const itemsQuery = `SELECT item_name, category,
+      ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit,
+      ROUND(AVG(CASE WHEN sats_paid IS NOT NULL THEN sats_paid::float / NULLIF(quantity, 0) END)::numeric, 0)::float avg_sats_per_unit,
+      COUNT(*)::int data_points
+     FROM inflation_purchases
+     WHERE community_id = $1 AND verification_status != 'rejected'
+       AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2
+     GROUP BY item_name, category HAVING COUNT(*) >= 5 ORDER BY category, item_name`;
+
+    const [items, prevItems, adoption] = await Promise.all([
+      query(itemsQuery, [communityId, latest.month]),
       query(
-        `SELECT item_name, category,
-          ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit,
-          ROUND(AVG(CASE WHEN sats_paid IS NOT NULL THEN sats_paid::float / NULLIF(quantity, 0) END)::numeric, 0)::float avg_sats_per_unit,
-          COUNT(*)::int data_points
+        `SELECT item_name,
+          ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit
          FROM inflation_purchases
          WHERE community_id = $1 AND verification_status != 'rejected'
            AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2
-         GROUP BY item_name, category HAVING COUNT(*) >= 5 ORDER BY category, item_name`,
-        [communityId, latest.month]
+         GROUP BY item_name HAVING COUNT(*) >= 5`,
+        [communityId, prevMonth]
       ),
       queryOne<{ total: number; bitcoin: number }>(
         `SELECT COUNT(*)::int total,
@@ -473,8 +486,8 @@ router.get('/reports/latest', async (req, res) => {
         [communityId, latest.month]
       ),
     ]);
-    res.json({ month: latest.month, items, adoption });
-  } catch (err) { console.error('[reports/latest]', err); res.status(500).json({ error: 'Failed' }); }
+    res.json({ month: latest.month, items, prevItems, adoption });
+  } catch (err) { console.error('[reports/latest]', err); res.status(500).json({ error: 'Failed to load report' }); }
 });
 
 /** GET /inflation/reports/:month?community_id=  — format YYYY-MM */

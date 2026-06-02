@@ -8,28 +8,22 @@ import PublicReportPage from './inflation/screens/PublicReportPage.tsx'
 
 const path = window.location.pathname
 const isDeveloperPortal = path.startsWith('/developers')
+const isCaptureForm = path.startsWith('/inflation-tracker/capture')
+const isInflationAdmin = path.startsWith('/inflation-tracker/admin')
 const isInflationTracker = path.startsWith('/inflation-tracker')
-const isPublicReport = path.startsWith('/inflation-tracker/reports')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isPublicReport
-      ? <PublicReportPage />
+    {isCaptureForm || isInflationAdmin
+      ? <InflationApp />
       : isInflationTracker
-        ? <InflationApp />
+        ? <PublicReportPage />
         : isDeveloperPortal
           ? <DevPortal />
           : <App />}
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => { /* noop */ })
-  })
-}
-
-// Service worker for PWA installability
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* noop */ })
