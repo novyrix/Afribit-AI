@@ -1,0 +1,37 @@
+{
+  "id": "fedimint-generic",
+  "version": "0.1.0",
+  "name": "Fedimint (Any Federation)",
+  "description": "Connect any Fedimint federation using its invite code. Read-only ecash balance and history.",
+  "category": "wallet",
+  "logo": "fedi.svg",
+  "color": "#FF6B35",
+  "website": "https://fedimint.org",
+  "documentation": "https://github.com/afribit/sats-connectors",
+  "license": "MIT",
+  "author": {
+    "name": "Afribit Africa (reference)",
+    "github": "afribit",
+    "contact": "connector-spec@afribit.africa"
+  },
+  "capabilities": {
+    "read_balance": true,
+    "read_transactions": true,
+    "read_profile": false,
+    "create_invoice": false,
+    "send_payment": false,
+    "on_ramp": false,
+    "off_ramp": false
+  },
+  "auth": {
+    "type": "invite_code",
+    "label": "Federation Invite Code",
+    "placeholder": "fed1...",
+    "validation_regex": "^fed1[a-z0-9]+$",
+    "help_text": "Paste the invite code for the federation you want to connect."
+  },
+  "supported_currencies": ["BTC"],
+  "supported_networks": ["ecash"],
+  "regions": ["global"],
+  "status": "in_review"
+}

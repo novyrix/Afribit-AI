@@ -1,0 +1,34 @@
+{
+  "id": "fedimint-afribit",
+  "version": "0.1.0",
+  "name": "Afribit Community Wallet",
+  "description": "Afribit Africa's Fedimint federation. Zero-friction ecash wallet for Kibera. Invite code is embedded; no credential input required.",
+  "category": "wallet",
+  "logo": "fedi.svg",
+  "color": "#FF6B35",
+  "website": "https://afribit.africa",
+  "documentation": "https://github.com/afribit/sats-connectors",
+  "license": "MIT",
+  "author": {
+    "name": "Afribit Africa",
+    "github": "afribit",
+    "contact": "connector-spec@afribit.africa"
+  },
+  "capabilities": {
+    "read_balance": true,
+    "read_transactions": true,
+    "read_profile": false,
+    "create_invoice": false,
+    "send_payment": false,
+    "on_ramp": false,
+    "off_ramp": false
+  },
+  "auth": {
+    "type": "none",
+    "help_text": "Connects automatically using Afribit's public federation invite code."
+  },
+  "supported_currencies": ["BTC"],
+  "supported_networks": ["ecash"],
+  "regions": ["KE"],
+  "status": "in_review"
+}

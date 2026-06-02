@@ -10,6 +10,7 @@ import walletsRouter      from './routes/wallets';
 import aiRouter           from './routes/ai';
 import ratesRouter        from './routes/rates';
 import transactionsRouter from './routes/transactions';
+import connectorsRouter   from './routes/connectors';
 import healthRouter       from './routes/health';
 import webhooksRouter     from './routes/webhooks';
 
@@ -60,6 +61,7 @@ app.use('/wallets',      walletsRouter);
 app.use('/ai',           aiRouter);
 app.use('/rates',        ratesRouter);
 app.use('/transactions', transactionsRouter);
+app.use('/connectors',   connectorsRouter);  // Public connector directory
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

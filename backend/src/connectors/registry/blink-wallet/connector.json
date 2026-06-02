@@ -1,0 +1,39 @@
+{
+  "id": "blink-wallet",
+  "version": "1.0.0",
+  "name": "Blink",
+  "description": "Lightning wallet by Galoy. Self-custodial with Stablesats support.",
+  "category": "wallet",
+  "logo": "blink.svg",
+  "color": "#FFD700",
+  "website": "https://blink.sv",
+  "documentation": "https://dev.blink.sv",
+  "license": "MIT",
+  "author": {
+    "name": "Afribit Africa (reference)",
+    "github": "afribit",
+    "contact": "connector-spec@afribit.africa"
+  },
+  "capabilities": {
+    "read_balance": true,
+    "read_transactions": true,
+    "read_profile": true,
+    "create_invoice": false,
+    "send_payment": false,
+    "on_ramp": false,
+    "off_ramp": false
+  },
+  "auth": {
+    "type": "api_key",
+    "label": "Blink API Key",
+    "placeholder": "blink_...",
+    "validation_regex": "^blink_[A-Za-z0-9_\\-]{20,}$",
+    "help_url": "https://dashboard.blink.sv",
+    "help_text": "Generate a read-only API key from the Blink dashboard."
+  },
+  "supported_currencies": ["BTC"],
+  "supported_networks": ["lightning", "onchain"],
+  "regions": ["global"],
+  "status": "verified",
+  "last_reviewed": "2026-06-01"
+}
