@@ -62,6 +62,60 @@ export type PurchasePayload = {
   offline_id?: string
 }
 
+export type AdminSummary = {
+  total_purchases: number
+  items_tracked: number
+  contributors: number
+  merchants_active: number
+  bitcoin_purchases: number
+  pending_review: number
+}
+
+export type PriceTrendRow = {
+  item_name: string
+  category: string
+  week: string
+  avg_kes: number
+  avg_sats: number | null
+  count: number
+}
+
+export type ReviewEntry = {
+  id: string
+  item_name: string
+  category: string
+  quantity: number
+  unit: string
+  price_kes: number
+  payment_method: string
+  sats_paid: number | null
+  capture_date: string
+  notes: string | null
+  verification_status: string
+  created_at: string
+  contributor: string
+}
+
+export type CategoryStat = {
+  category: string
+  total: number
+  avg_kes_per_unit: number
+  bitcoin_count: number
+}
+
+export type ReportItem = {
+  item_name: string
+  category: string
+  avg_kes_per_unit: number
+  avg_sats_per_unit: number | null
+  data_points: number
+}
+
+export type ReportAdoption = {
+  total: number
+  bitcoin: number
+}
+
 export const inflationApi = {
   async register(data: {
     display_name: string
@@ -136,5 +190,52 @@ export const inflationApi = {
       body: JSON.stringify({ purchases }),
     })
     return json<{ submitted: number; inserted: number; ids: string[] }>(res)
+  },
+
+  async getAdminSummary(token: string, communityId: string) {
+    const res = await fetch(`${BASE}/inflation/admin/summary?community_id=${communityId}`, {
+      headers: authHeaders(token),
+    })
+    return json<AdminSummary>(res)
+  },
+
+  async getPriceTrends(token: string, communityId: string, days = 90) {
+    const res = await fetch(`${BASE}/inflation/admin/price-trends?community_id=${communityId}&days=${days}`, {
+      headers: authHeaders(token),
+    })
+    return json<PriceTrendRow[]>(res)
+  },
+
+  async getReviewQueue(token: string, communityId: string) {
+    const res = await fetch(`${BASE}/inflation/admin/review-queue?community_id=${communityId}`, {
+      headers: authHeaders(token),
+    })
+    return json<ReviewEntry[]>(res)
+  },
+
+  async reviewPurchase(token: string, id: string, status: 'admin-reviewed' | 'flagged' | 'rejected') {
+    const res = await fetch(`${BASE}/inflation/admin/review/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ status }),
+    })
+    return json<{ ok: boolean; status: string }>(res)
+  },
+
+  async getCategoryBreakdown(token: string, communityId: string) {
+    const res = await fetch(`${BASE}/inflation/admin/category-breakdown?community_id=${communityId}`, {
+      headers: authHeaders(token),
+    })
+    return json<CategoryStat[]>(res)
+  },
+
+  async getLatestReport(communityId: string) {
+    const res = await fetch(`${BASE}/inflation/reports/latest?community_id=${communityId}`)
+    return json<{ month: string | null; items: ReportItem[]; adoption: ReportAdoption | null }>(res)
+  },
+
+  async getReport(communityId: string, month: string) {
+    const res = await fetch(`${BASE}/inflation/reports/${month}?community_id=${communityId}`)
+    return json<{ month: string; items: ReportItem[]; prevItems: { item_name: string; avg_kes_per_unit: number }[]; adoption: ReportAdoption | null }>(res)
   },
 }

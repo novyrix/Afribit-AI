@@ -311,4 +311,213 @@ router.post('/purchases/batch', requireAuth(), async (req, res) => {
   }
 });
 
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
+
+const ADMIN_ROLES = ['community-admin', 'super-admin', 'field-officer'];
+
+type AdminUser = { user_id: string; role: string; community_id: string | null };
+
+function getAdminUser(req: import('express').Request): AdminUser {
+  return (req as import('express').Request & { inflationUser: AdminUser }).inflationUser;
+}
+
+function canAccessCommunity(u: AdminUser, communityId: string): boolean {
+  return u.role === 'super-admin' || u.community_id === communityId;
+}
+
+/** GET /inflation/admin/summary?community_id= */
+router.get('/admin/summary', requireAuth(ADMIN_ROLES), async (req, res) => {
+  const u = getAdminUser(req);
+  const communityId = (req.query.community_id as string) ?? u.community_id;
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  if (!canAccessCommunity(u, communityId)) { res.status(403).json({ error: 'Access denied' }); return; }
+  try {
+    const stats = await queryOne<{
+      total_purchases: number; items_tracked: number; contributors: number;
+      merchants_active: number; bitcoin_purchases: number; pending_review: number;
+    }>(
+      `SELECT
+        COUNT(*)::int total_purchases,
+        COUNT(DISTINCT item_name)::int items_tracked,
+        COUNT(DISTINCT captured_by)::int contributors,
+        COUNT(DISTINCT merchant_id)::int merchants_active,
+        SUM(CASE WHEN payment_method = 'bitcoin' THEN 1 ELSE 0 END)::int bitcoin_purchases,
+        COUNT(CASE WHEN verification_status = 'unverified' THEN 1 END)::int pending_review
+       FROM inflation_purchases
+       WHERE community_id = $1 AND verification_status != 'rejected'`,
+      [communityId]
+    );
+    res.json(stats ?? { total_purchases: 0, items_tracked: 0, contributors: 0, merchants_active: 0, bitcoin_purchases: 0, pending_review: 0 });
+  } catch (err) { console.error('[admin/summary]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+/** GET /inflation/admin/price-trends?community_id=&days=90 */
+router.get('/admin/price-trends', requireAuth(ADMIN_ROLES), async (req, res) => {
+  const u = getAdminUser(req);
+  const communityId = (req.query.community_id as string) ?? u.community_id;
+  const days = Math.min(parseInt(req.query.days as string) || 90, 365);
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  if (!canAccessCommunity(u, communityId)) { res.status(403).json({ error: 'Access denied' }); return; }
+  try {
+    const rows = await query<{
+      item_name: string; category: string; week: string;
+      avg_kes: number; avg_sats: number | null; count: number;
+    }>(
+      `SELECT
+        item_name, category,
+        TO_CHAR(DATE_TRUNC('week', capture_date), 'YYYY-MM-DD') week,
+        ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes,
+        ROUND(AVG(CASE WHEN sats_paid IS NOT NULL THEN sats_paid::float / NULLIF(quantity, 0) END)::numeric, 0)::float avg_sats,
+        COUNT(*)::int count
+       FROM inflation_purchases
+       WHERE community_id = $1 AND verification_status != 'rejected'
+         AND capture_date >= CURRENT_DATE - ($2 || ' days')::interval
+       GROUP BY item_name, category, DATE_TRUNC('week', capture_date)
+       ORDER BY item_name, week`,
+      [communityId, days]
+    );
+    res.json(rows);
+  } catch (err) { console.error('[admin/price-trends]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+/** GET /inflation/admin/review-queue?community_id= */
+router.get('/admin/review-queue', requireAuth(['community-admin', 'super-admin']), async (req, res) => {
+  const u = getAdminUser(req);
+  const communityId = (req.query.community_id as string) ?? u.community_id;
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  if (!canAccessCommunity(u, communityId)) { res.status(403).json({ error: 'Access denied' }); return; }
+  try {
+    const rows = await query(
+      `SELECT p.id, p.item_name, p.category, p.quantity, p.unit, p.price_kes,
+              p.payment_method, p.sats_paid, p.capture_date, p.notes,
+              p.verification_status, p.created_at, u.display_name contributor
+       FROM inflation_purchases p
+       JOIN inflation_users u ON u.id = p.captured_by
+       WHERE p.community_id = $1 AND p.verification_status = 'unverified'
+       ORDER BY p.created_at DESC LIMIT 100`,
+      [communityId]
+    );
+    res.json(rows);
+  } catch (err) { console.error('[admin/review-queue]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+/** PATCH /inflation/admin/review/:id */
+router.patch('/admin/review/:id', requireAuth(['community-admin', 'super-admin']), async (req, res) => {
+  const u = getAdminUser(req);
+  const { status } = req.body;
+  if (!['admin-reviewed', 'flagged', 'rejected'].includes(status)) {
+    res.status(400).json({ error: 'Invalid status. Use: admin-reviewed, flagged, rejected' }); return;
+  }
+  try {
+    const purchase = await queryOne<{ community_id: string }>(
+      `SELECT community_id FROM inflation_purchases WHERE id = $1`, [req.params.id]
+    );
+    if (!purchase) { res.status(404).json({ error: 'Not found' }); return; }
+    if (!canAccessCommunity(u, purchase.community_id)) { res.status(403).json({ error: 'Access denied' }); return; }
+    await query(`UPDATE inflation_purchases SET verification_status = $1 WHERE id = $2`, [status, req.params.id]);
+    res.json({ ok: true, status });
+  } catch (err) { console.error('[admin/review/:id]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+/** GET /inflation/admin/category-breakdown?community_id= */
+router.get('/admin/category-breakdown', requireAuth(ADMIN_ROLES), async (req, res) => {
+  const u = getAdminUser(req);
+  const communityId = (req.query.community_id as string) ?? u.community_id;
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  if (!canAccessCommunity(u, communityId)) { res.status(403).json({ error: 'Access denied' }); return; }
+  try {
+    const rows = await query(
+      `SELECT
+        category, COUNT(*)::int total,
+        ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit,
+        COUNT(CASE WHEN payment_method = 'bitcoin' THEN 1 END)::int bitcoin_count
+       FROM inflation_purchases
+       WHERE community_id = $1 AND verification_status != 'rejected'
+       GROUP BY category ORDER BY total DESC`,
+      [communityId]
+    );
+    res.json(rows);
+  } catch (err) { console.error('[admin/category-breakdown]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ─── Public Reports ───────────────────────────────────────────────────────────
+
+/** GET /inflation/reports/latest?community_id= */
+router.get('/reports/latest', async (req, res) => {
+  const communityId = req.query.community_id as string;
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  try {
+    const latest = await queryOne<{ month: string }>(
+      `SELECT TO_CHAR(DATE_TRUNC('month', MAX(capture_date)), 'YYYY-MM') month
+       FROM inflation_purchases WHERE community_id = $1 AND verification_status != 'rejected'`,
+      [communityId]
+    );
+    if (!latest?.month) { res.json({ month: null, items: [], adoption: null }); return; }
+    const [items, adoption] = await Promise.all([
+      query(
+        `SELECT item_name, category,
+          ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit,
+          ROUND(AVG(CASE WHEN sats_paid IS NOT NULL THEN sats_paid::float / NULLIF(quantity, 0) END)::numeric, 0)::float avg_sats_per_unit,
+          COUNT(*)::int data_points
+         FROM inflation_purchases
+         WHERE community_id = $1 AND verification_status != 'rejected'
+           AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2
+         GROUP BY item_name, category HAVING COUNT(*) >= 5 ORDER BY category, item_name`,
+        [communityId, latest.month]
+      ),
+      queryOne<{ total: number; bitcoin: number }>(
+        `SELECT COUNT(*)::int total,
+          SUM(CASE WHEN payment_method = 'bitcoin' THEN 1 ELSE 0 END)::int bitcoin
+         FROM inflation_purchases WHERE community_id = $1 AND verification_status != 'rejected'
+           AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2`,
+        [communityId, latest.month]
+      ),
+    ]);
+    res.json({ month: latest.month, items, adoption });
+  } catch (err) { console.error('[reports/latest]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+/** GET /inflation/reports/:month?community_id=  — format YYYY-MM */
+router.get('/reports/:month', async (req, res) => {
+  const communityId = req.query.community_id as string;
+  const { month } = req.params;
+  if (!communityId) { res.status(400).json({ error: 'community_id required' }); return; }
+  if (!/^\d{4}-\d{2}$/.test(month)) { res.status(400).json({ error: 'month must be YYYY-MM' }); return; }
+  try {
+    const prevDate = new Date(`${month}-01`);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonth = prevDate.toISOString().slice(0, 7);
+    const [items, prevItems, adoption] = await Promise.all([
+      query(
+        `SELECT item_name, category,
+          ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit,
+          ROUND(AVG(CASE WHEN sats_paid IS NOT NULL THEN sats_paid::float / NULLIF(quantity, 0) END)::numeric, 0)::float avg_sats_per_unit,
+          COUNT(*)::int data_points
+         FROM inflation_purchases
+         WHERE community_id = $1 AND verification_status != 'rejected'
+           AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2
+         GROUP BY item_name, category HAVING COUNT(*) >= 5 ORDER BY category, item_name`,
+        [communityId, month]
+      ),
+      query(
+        `SELECT item_name,
+          ROUND(AVG(price_kes / NULLIF(quantity, 0))::numeric, 2)::float avg_kes_per_unit
+         FROM inflation_purchases
+         WHERE community_id = $1 AND verification_status != 'rejected'
+           AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2
+         GROUP BY item_name HAVING COUNT(*) >= 5`,
+        [communityId, prevMonth]
+      ),
+      queryOne<{ total: number; bitcoin: number }>(
+        `SELECT COUNT(*)::int total,
+          SUM(CASE WHEN payment_method = 'bitcoin' THEN 1 ELSE 0 END)::int bitcoin
+         FROM inflation_purchases WHERE community_id = $1 AND verification_status != 'rejected'
+           AND TO_CHAR(DATE_TRUNC('month', capture_date), 'YYYY-MM') = $2`,
+        [communityId, month]
+      ),
+    ]);
+    res.json({ month, items, prevItems, adoption });
+  } catch (err) { console.error('[reports/:month]', err); res.status(500).json({ error: 'Failed' }); }
+});
+
 export default router;
