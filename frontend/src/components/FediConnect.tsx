@@ -4,7 +4,7 @@ import { FediMark, Check, ChevronRight } from './ui/Icons'
 import { Glass, PillButton } from './ui/Glass'
 import { api } from '../lib/api'
 import { enableWebln, getWeblnBalanceSats, listWeblnTransactions } from '../lib/webln'
-import { isInFedi, readFediFederation } from '../lib/fedi'
+import { isInFedi, readFediFederation, readNostrPubkey } from '../lib/fedi'
 
 const SPRING = { type: 'spring' as const, damping: 20, stiffness: 220 }
 
@@ -32,8 +32,10 @@ export function FediConnect({
     try {
       const info = await enableWebln()
       const fed = await readFediFederation()
+      const nostrPk = await readNostrPubkey()
       const name = fed.name?.trim() || info.alias?.trim() || 'Fedi Wallet'
       const fedId =
+        nostrPk ||
         fed.id?.trim() ||
         info.pubkey?.trim() ||
         (name !== 'Fedi Wallet' ? `fedi:${name}` : 'fedi-mini-app')
@@ -47,17 +49,10 @@ export function FediConnect({
         catch { /* tx import is best-effort */ }
       }
 
-      // Fedi exposes the federation balance through WebLN getBalance. When the
-      // provider does not implement it we fall back to the net of the imported
-      // transactions so the dashboard total still reflects this wallet.
-      let bal = await getWeblnBalanceSats()
-      if (bal === null && txs.length > 0) {
-        const net = txs.reduce(
-          (sum, t) => sum + (t.direction === 'in' ? t.amountSats : -t.amountSats),
-          0,
-        )
-        bal = Math.max(0, net)
-      }
+      // Fedi exposes the federation balance through WebLN getBalance when it is
+      // supported. Fedi does not report transaction amounts, so we only persist a
+      // balance when the provider returns a real value and never derive one.
+      const bal = await getWeblnBalanceSats()
       if (bal !== null) {
         try { await api.setWalletBalance(token, 'fedi', conn.walletConnId, bal) }
         catch { /* balance is best-effort */ }
