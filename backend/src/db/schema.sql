@@ -37,6 +37,13 @@ ALTER TABLE wallet_connections
 CREATE INDEX IF NOT EXISTS idx_wallet_connections_session
   ON wallet_connections(session_id) WHERE is_active = TRUE;
 
+-- A given session may only hold one active connection per wallet provider +
+-- external identity (e.g. one connection per Fedi federation). This stops the
+-- same wallet/federation from being added multiple times.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_connections_unique_active
+  ON wallet_connections(session_id, wallet_type, external_id)
+  WHERE is_active = TRUE AND external_id IS NOT NULL AND external_id <> '';
+
 -- Cached transactions (server-side cache for analytics + offline)
 CREATE TABLE IF NOT EXISTS transactions_cache (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

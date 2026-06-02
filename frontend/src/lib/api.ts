@@ -222,7 +222,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
       body: JSON.stringify({ federationId, inviteCode, nickname }),
     })
-    return json<{ walletConnId: string; federationId: string }>(res)
+    return json<{ walletConnId: string; federationId: string; existing?: boolean }>(res)
   },
 
   async pushFediTransactions(

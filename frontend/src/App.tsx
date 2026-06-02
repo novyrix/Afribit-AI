@@ -5,7 +5,9 @@ import { LaunchScreen } from './components/LaunchScreen'
 import { InstallScreen } from './components/InstallScreen'
 import { EcosystemScreen } from './components/EcosystemScreen'
 import { TermsScreen } from './components/TermsScreen'
-import { AIPreferencesScreen } from './components/AIPreferencesScreen'
+import { ConnectScreen } from './components/ConnectScreen'
+import { ProgramsScreen } from './components/ProgramsScreen'
+import { TakaSatsProgram } from './taka-sats/TakaSatsProgram'
 import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
 import { WebLNConnect } from './components/WebLNConnect'
@@ -17,8 +19,9 @@ import { isStandalone } from './lib/pwa'
 import { isWeblnAvailable } from './lib/webln'
 
 type Phase =
-  | 'launch' | 'install' | 'terms' | 'aiPrefs'
-  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'connectNwc' | 'main'
+  | 'launch' | 'install' | 'terms' | 'connect' | 'programs'
+  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'connectNwc'
+  | 'takaSats' | 'main'
 
 const LANG_KEY = 'sats_lang'
 const PHASE_KEY = 'sats_phase'
@@ -53,7 +56,7 @@ export default function App() {
       .then(({ wallets }) => {
         setHasBlink(wallets.some((w) => w.walletType === 'blink'))
         setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
-        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms' || phase === 'aiPrefs')) {
+        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms')) {
           setPhase('main')
           localStorage.setItem(PHASE_KEY, 'main')
         }
@@ -90,11 +93,33 @@ export default function App() {
         )}
 
         {phase === 'terms' && (
-          <TermsScreen key="terms" onContinue={() => go('aiPrefs')} />
+          <TermsScreen key="terms" onContinue={() => go('connect')} />
         )}
 
-        {phase === 'aiPrefs' && (
-          <AIPreferencesScreen key="aiPrefs" onContinue={() => go('ecosystem')} />
+        {phase === 'connect' && (
+          <ConnectScreen
+            key="connect"
+            onAllInOne={() => go('ecosystem')}
+            onPrograms={() => go('programs')}
+            onSkip={() => go('main')}
+          />
+        )}
+
+        {phase === 'programs' && (
+          <ProgramsScreen
+            key="programs"
+            onBack={() => go('connect')}
+            onSelectTaka={() => go('takaSats')}
+          />
+        )}
+
+        {phase === 'takaSats' && token && (
+          <TakaSatsProgram
+            key="takaSats"
+            token={token}
+            onBack={() => go('programs')}
+            onHome={() => go('main')}
+          />
         )}
 
         {phase === 'ecosystem' && token && (

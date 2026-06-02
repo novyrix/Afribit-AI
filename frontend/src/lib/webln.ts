@@ -34,6 +34,7 @@ interface WeblnProvider {
   getBalance?: () => Promise<{ balance: number; currency?: string }>
   listTransactions?: (args?: { limit?: number }) => Promise<{ transactions: RawTx[] }>
   request?: (method: string, args?: unknown) => Promise<{ transactions?: RawTx[] }>
+  sendPayment?: (paymentRequest: string) => Promise<{ preimage: string }>
 }
 
 function provider(): WeblnProvider | null {
@@ -72,6 +73,18 @@ export async function getWeblnBalanceSats(): Promise<number | null> {
   } catch {
     return null
   }
+}
+
+export async function weblnSendPayment(invoice: string): Promise<{ preimage: string }> {
+  const w = provider()
+  if (!w) throw new Error('No Lightning wallet detected in this browser.')
+  if (!w.sendPayment) throw new Error('Wallet does not support sending payments.')
+  await w.enable()
+  const res = await w.sendPayment(invoice)
+  if (!res || typeof res.preimage !== 'string') {
+    throw new Error('Payment did not return a preimage.')
+  }
+  return { preimage: res.preimage }
 }
 
 // NWC-style transaction objects report amounts in millisatoshis.

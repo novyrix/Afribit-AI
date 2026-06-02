@@ -318,8 +318,24 @@ const FediPushBatchSchema = z.object({
 router.post('/fedi', requireSession, async (req, res) => {
   try {
     const { federationId, nickname } = ConnectFediSchema.parse(req.body);
-    const id = randomUUID();
 
+    // A federation can only be linked once per session — re-adding the same
+    // federation returns the existing connection instead of creating a duplicate.
+    const existing = await queryOne<{ id: string }>(
+      `SELECT id FROM wallet_connections
+       WHERE session_id = $1 AND wallet_type = 'fedi' AND external_id = $2 AND is_active = TRUE`,
+      [req.sessionId, federationId]
+    );
+    if (existing) {
+      await query(
+        `UPDATE wallet_connections SET nickname = $1, last_synced_at = NOW() WHERE id = $2`,
+        [nickname, existing.id]
+      );
+      res.json({ walletConnId: existing.id, federationId, nickname, status: 'connected', existing: true });
+      return;
+    }
+
+    const id = randomUUID();
     await query(
       `INSERT INTO wallet_connections
          (id, session_id, wallet_type, nickname, external_id, is_active, last_synced_at)
@@ -327,7 +343,7 @@ router.post('/fedi', requireSession, async (req, res) => {
       [id, req.sessionId, nickname, federationId]
     );
 
-    res.json({ walletConnId: id, federationId, nickname, status: 'connected' });
+    res.json({ walletConnId: id, federationId, nickname, status: 'connected', existing: false });
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: err.errors });
     else {
@@ -347,16 +363,33 @@ router.post(['/webln', '/nwc'], requireSession, async (req, res) => {
   const walletType = req.path.endsWith('/nwc') ? 'nwc' : 'webln';
   try {
     const { externalId, nickname } = ConnectWeblnSchema.parse(req.body);
-    const id = randomUUID();
+    const extId = externalId && externalId.trim() ? externalId.trim() : null;
 
+    if (extId) {
+      const existing = await queryOne<{ id: string }>(
+        `SELECT id FROM wallet_connections
+         WHERE session_id = $1 AND wallet_type = $2 AND external_id = $3 AND is_active = TRUE`,
+        [req.sessionId, walletType, extId]
+      );
+      if (existing) {
+        await query(
+          `UPDATE wallet_connections SET nickname = $1, last_synced_at = NOW() WHERE id = $2`,
+          [nickname, existing.id]
+        );
+        res.json({ walletConnId: existing.id, externalId: extId, nickname, status: 'connected', existing: true });
+        return;
+      }
+    }
+
+    const id = randomUUID();
     await query(
       `INSERT INTO wallet_connections
          (id, session_id, wallet_type, nickname, external_id, is_active, last_synced_at)
        VALUES ($1, $2, $3, $4, $5, TRUE, NOW())`,
-      [id, req.sessionId, walletType, nickname, externalId ?? null]
+      [id, req.sessionId, walletType, nickname, extId]
     );
 
-    res.json({ walletConnId: id, externalId: externalId ?? null, nickname, status: 'connected' });
+    res.json({ walletConnId: id, externalId: extId, nickname, status: 'connected', existing: false });
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: err.errors });
     else {

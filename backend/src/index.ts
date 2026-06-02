@@ -15,6 +15,7 @@ import { startHealthMonitor } from './connectors/health';
 import healthRouter       from './routes/health';
 import webhooksRouter     from './routes/webhooks';
 import inflationRouter    from './routes/inflation';
+import takaSatsRouter     from './routes/taka-sats';
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/rates',        ratesRouter);
 app.use('/transactions', transactionsRouter);
 app.use('/connectors',   connectorsRouter);  // Public connector directory
 app.use('/inflation',    inflationRouter);
+app.use('/taka-sats',    takaSatsRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -10,9 +10,11 @@ async function migrate() {
   const client = await pool.connect();
 
   try {
-    const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8');
-    console.log('[migrate] Running schema...');
-    await client.query(schema);
+    for (const file of ['schema.sql', 'inflation-schema.sql', 'taka-sats-schema.sql']) {
+      const schema = readFileSync(join(__dirname, file), 'utf-8');
+      console.log(`[migrate] Running ${file}...`);
+      await client.query(schema);
+    }
     console.log('[migrate] Done.');
   } finally {
     client.release();

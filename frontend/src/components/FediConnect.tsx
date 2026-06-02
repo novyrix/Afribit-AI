@@ -33,21 +33,34 @@ export function FediConnect({
       const info = await enableWebln()
       const fed = await readFediFederation()
       const name = fed.name?.trim() || info.alias?.trim() || 'Fedi Wallet'
-      const fedId = fed.id?.trim() || info.pubkey?.trim() || 'fedi-mini-app'
+      const fedId =
+        fed.id?.trim() ||
+        info.pubkey?.trim() ||
+        (name !== 'Fedi Wallet' ? `fedi:${name}` : 'fedi-mini-app')
       setNickname(name)
 
       const conn = await api.connectFedi(token, fedId, undefined, name)
-
-      const bal = await getWeblnBalanceSats()
-      if (bal !== null) {
-        try { await api.setWalletBalance(token, 'fedi', conn.walletConnId, bal) }
-        catch { /* balance is best-effort */ }
-      }
 
       const txs = await listWeblnTransactions(100)
       if (txs.length > 0) {
         try { await api.pushFediTransactions(token, conn.walletConnId, txs) }
         catch { /* tx import is best-effort */ }
+      }
+
+      // Fedi exposes the federation balance through WebLN getBalance. When the
+      // provider does not implement it we fall back to the net of the imported
+      // transactions so the dashboard total still reflects this wallet.
+      let bal = await getWeblnBalanceSats()
+      if (bal === null && txs.length > 0) {
+        const net = txs.reduce(
+          (sum, t) => sum + (t.direction === 'in' ? t.amountSats : -t.amountSats),
+          0,
+        )
+        bal = Math.max(0, net)
+      }
+      if (bal !== null) {
+        try { await api.setWalletBalance(token, 'fedi', conn.walletConnId, bal) }
+        catch { /* balance is best-effort */ }
       }
 
       setPhase('success')

@@ -33,10 +33,12 @@ export function EcosystemScreen({
   onSkip: () => void
 }) {
   const services: Service[] = useMemo(() => [
-    { id: 'blink',  name: 'Blink',  logo: '/logos/blink.svg',  status: hasBlink ? 'connected' : 'available', angle: -90 },
-    { id: 'fedi',   name: 'Fedi',   logo: '/logos/fedi.png',   status: hasFedi  ? 'connected' : 'available', angle:   0 },
-    { id: 'bitika', name: 'Bitika', logo: '/logos/bitika.png', status: 'soon',                               angle:  90 },
-    { id: 'minmo',  name: 'Minmo',  logo: '/logos/minmo.svg',  status: 'soon',                               angle: 180 },
+    { id: 'blink',      name: 'Blink',      logo: '/logos/blink.svg',  status: hasBlink ? 'connected' : 'available', angle: -90 },
+    { id: 'fedi',       name: 'Fedi',       logo: '/logos/fedi.png',   status: hasFedi  ? 'connected' : 'available', angle: -30 },
+    { id: 'tando',      name: 'Tando',      logo: '/logos/tando.webp',  status: 'soon',                              angle:  30 },
+    { id: 'bitrefill',  name: 'Bitrefill',  logo: '/logos/bitrefill.png', status: 'soon',                            angle:  90 },
+    { id: 'minmo',      name: 'Minmo',      logo: '/logos/minmo.svg',  status: 'soon',                               angle: 150 },
+    { id: 'machankura', name: 'Machankura', logo: '/logos/machankura.svg', status: 'soon',                           angle: 210 },
   ], [hasBlink, hasFedi])
 
   function tap(s: Service) {
@@ -134,11 +136,18 @@ export function EcosystemScreen({
                         : '1px solid rgba(255,255,255,0.12)',
                     }}
                   >
+                    <span
+                      className="absolute font-brand font-semibold text-15 text-white/70"
+                      aria-hidden
+                    >
+                      {s.name.charAt(0)}
+                    </span>
                     <img
                       src={s.logo}
                       alt={s.name}
-                      className="w-9 h-9 object-contain rounded-full"
+                      className="w-9 h-9 object-contain rounded-full relative"
                       draggable={false}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                     />
                   </div>
                   <div className="font-ui text-11 text-white/60 whitespace-nowrap">

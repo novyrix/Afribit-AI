@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   version="1.1"
+   id="SVGRoot"
+   sodipodi:docname="logo.svg"
+   inkscape:version="1.2 (dc2aeda, 2022-05-15)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview3529"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="true"
+     inkscape:zoom="0.69664703"
+     inkscape:cx="366.75675"
+     inkscape:cy="257.66277"
+     inkscape:window-width="1920"
+     inkscape:window-height="948"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid3535"
+       originx="-30"
+       originy="-30" />
+  </sodipodi:namedview>
+  <defs
+     id="defs3524" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(111,50)">
+    <path
+       style="fill:#000000"
+       d="M 30,50 H 80 V 30 h 30 v 20 h 30 V 30 h 30 v 20 h 50 v 130 l 60,90 -110,90 v 20 h -30 v -20 h -30 v 20 H 80 V 360 H 30 V 330 H 50 V 80 H 30 m 80,170 50,50 40,-30 -40,-60 h -20 v -60 h 30 V 90 h -60"
+       id="path86" />
+  </g>
+</svg>

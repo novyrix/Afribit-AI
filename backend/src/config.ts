@@ -44,6 +44,17 @@ export const config = {
     webhookSecret: optional('BLINK_WEBHOOK_SECRET', ''),
   },
 
+  lnbits: {
+    url:       optional('LNBITS_URL', ''),
+    adminKey:  optional('LNBITS_ADMIN_KEY', ''),
+    walletId:  optional('LNBITS_WALLET_ID', ''),
+  },
+
+  takaSats: {
+    hmacSecret:  optional('TAKA_SATS_HMAC_SECRET', ''),
+    adminToken:  optional('TAKA_SATS_ADMIN_TOKEN', ''),
+  },
+
   exchangeRate: {
     url: optional('EXCHANGE_RATE_API_URL', 'https://open.er-api.com/v6/latest/USD'),
   },
