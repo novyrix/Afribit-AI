@@ -9,6 +9,7 @@ import { AIPreferencesScreen } from './components/AIPreferencesScreen'
 import { BlinkConnect } from './components/BlinkConnect'
 import { FediConnect } from './components/FediConnect'
 import { WebLNConnect } from './components/WebLNConnect'
+import { NWCConnect } from './components/NWCConnect'
 import { HelpSheet } from './components/HelpSheet'
 import { MainScreen } from './components/MainScreen'
 import { BgCanvas } from './components/ui/BgCanvas'
@@ -17,7 +18,7 @@ import { isWeblnAvailable } from './lib/webln'
 
 type Phase =
   | 'launch' | 'install' | 'terms' | 'aiPrefs'
-  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'main'
+  | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'connectNwc' | 'main'
 
 const LANG_KEY = 'sats_lang'
 const PHASE_KEY = 'sats_phase'
@@ -105,6 +106,7 @@ export default function App() {
             onSelectBlink={() => go('connectBlink')}
             onSelectFedi={() => go('connectFedi')}
             onSelectWebln={() => go('connectWebln')}
+            onSelectNwc={() => go('connectNwc')}
             onSkip={() => go('main')}
           />
         )}
@@ -132,6 +134,15 @@ export default function App() {
         {phase === 'connectWebln' && token && (
           <WebLNConnect
             key="webln"
+            token={token}
+            onBack={() => go('ecosystem')}
+            onDone={() => { go('main') }}
+          />
+        )}
+
+        {phase === 'connectNwc' && token && (
+          <NWCConnect
+            key="nwc"
             token={token}
             onBack={() => go('ecosystem')}
             onDone={() => { go('main') }}

@@ -307,8 +307,9 @@ const ConnectWeblnSchema = z.object({
   nickname: z.string().max(100).default('Lightning Wallet'),
 });
 
-/** POST /wallets/webln — register a WebLN one-click wallet */
-router.post('/webln', requireSession, async (req, res) => {
+/** POST /wallets/webln|nwc — register a one-click / NWC Lightning wallet */
+router.post(['/webln', '/nwc'], requireSession, async (req, res) => {
+  const walletType = req.path.endsWith('/nwc') ? 'nwc' : 'webln';
   try {
     const { externalId, nickname } = ConnectWeblnSchema.parse(req.body);
     const id = randomUUID();
@@ -316,22 +317,22 @@ router.post('/webln', requireSession, async (req, res) => {
     await query(
       `INSERT INTO wallet_connections
          (id, session_id, wallet_type, nickname, external_id, is_active, last_synced_at)
-       VALUES ($1, $2, 'webln', $3, $4, TRUE, NOW())`,
-      [id, req.sessionId, nickname, externalId ?? null]
+       VALUES ($1, $2, $3, $4, $5, TRUE, NOW())`,
+      [id, req.sessionId, walletType, nickname, externalId ?? null]
     );
 
     res.json({ walletConnId: id, externalId: externalId ?? null, nickname, status: 'connected' });
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: err.errors });
     else {
-      console.error('[wallets/webln]', err);
-      res.status(500).json({ error: 'Failed to register WebLN wallet' });
+      console.error(`[wallets/${walletType}]`, err);
+      res.status(500).json({ error: 'Failed to register wallet' });
     }
   }
 });
 
-/** POST /wallets/fedi|webln/:id/push — client pushes a transaction batch */
-router.post(['/fedi/:id/push', '/webln/:id/push'], requireSession, async (req, res) => {
+/** POST /wallets/fedi|webln|nwc/:id/push — client pushes a transaction batch */
+router.post(['/fedi/:id/push', '/webln/:id/push', '/nwc/:id/push'], requireSession, async (req, res) => {
   try {
     const wallet = await queryOne<{ wallet_type: string; session_id: string }>(
       `SELECT wallet_type, session_id FROM wallet_connections WHERE id = $1 AND is_active = TRUE`,
@@ -342,8 +343,8 @@ router.post(['/fedi/:id/push', '/webln/:id/push'], requireSession, async (req, r
       res.status(404).json({ error: 'Wallet not found' });
       return;
     }
-    if (wallet.wallet_type !== 'fedi' && wallet.wallet_type !== 'webln') {
-      res.status(400).json({ error: 'This endpoint is only for Fedi or WebLN wallets' });
+    if (wallet.wallet_type !== 'fedi' && wallet.wallet_type !== 'webln' && wallet.wallet_type !== 'nwc') {
+      res.status(400).json({ error: 'This endpoint is only for Fedi, WebLN or NWC wallets' });
       return;
     }
 

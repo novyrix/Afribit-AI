@@ -21,7 +21,7 @@ function polar(angleDeg: number) {
 
 export function EcosystemScreen({
   hasBlink, hasFedi, weblnAvailable,
-  onSelectBlink, onSelectFedi, onSelectWebln, onSkip,
+  onSelectBlink, onSelectFedi, onSelectWebln, onSelectNwc, onSkip,
 }: {
   hasBlink?: boolean
   hasFedi?: boolean
@@ -29,6 +29,7 @@ export function EcosystemScreen({
   onSelectBlink: () => void
   onSelectFedi: () => void
   onSelectWebln: () => void
+  onSelectNwc: () => void
   onSkip: () => void
 }) {
   const services: Service[] = useMemo(() => [
@@ -179,6 +180,13 @@ export function EcosystemScreen({
             <span className="font-ui text-14 text-white">Connect instantly</span>
           </motion.button>
         )}
+        <button
+          onClick={onSelectNwc}
+          className="font-ui text-14 text-white/70 hover:text-white flex items-center gap-2"
+        >
+          <Bolt size={14} className="text-bitcoin" />
+          Paste a wallet connection (NWC)
+        </button>
         <button
           onClick={onSkip}
           className="font-ui text-14 text-white/45 hover:text-white/70 flex items-center gap-1"

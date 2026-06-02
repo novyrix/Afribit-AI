@@ -21,7 +21,7 @@ export type ChatReply = {
 
 export type WalletConnection = {
   id: string
-  walletType: 'blink' | 'fedi' | 'webln'
+  walletType: 'blink' | 'fedi' | 'webln' | 'nwc'
   externalId: string | null
   nickname: string | null
   status: string
@@ -39,7 +39,7 @@ export type Transaction = {
   category: string
   memo: string | null
   occurredAt: string
-  wallet: { id: string; nickname: string | null; type: 'blink' | 'fedi' | 'webln' }
+  wallet: { id: string; nickname: string | null; type: 'blink' | 'fedi' | 'webln' | 'nwc' }
 }
 
 export type Summary = {
@@ -144,6 +144,35 @@ export const api = {
     }>,
   ) {
     const res = await fetch(`${API_URL}/wallets/webln/${walletConnId}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ transactions }),
+    })
+    return json<{ pushed: number; inserted: number; skipped: number }>(res)
+  },
+
+  async connectNwc(token: string, externalId: string | null, nickname?: string) {
+    const res = await fetch(`${API_URL}/wallets/nwc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ externalId, nickname }),
+    })
+    return json<{ walletConnId: string; externalId: string | null; nickname: string | null }>(res)
+  },
+
+  async pushNwcTransactions(
+    token: string,
+    walletConnId: string,
+    transactions: Array<{
+      externalId: string
+      direction: 'in' | 'out'
+      amountSats: number
+      feeSats: number
+      memo: string | null
+      occurredAt: string
+    }>,
+  ) {
+    const res = await fetch(`${API_URL}/wallets/nwc/${walletConnId}/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
       body: JSON.stringify({ transactions }),
