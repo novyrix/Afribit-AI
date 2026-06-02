@@ -5,6 +5,7 @@ import { query, queryOne, withTransaction } from '../db/client';
 import { randomUUID } from 'crypto';
 import { BlinkConnector, BlinkError } from '../connectors/blink';
 import { getCurrentRate } from '../connectors/coingecko';
+import { encrypt, decrypt, isEncryptionEnabled } from '../lib/crypto';
 
 const router = Router();
 
@@ -52,12 +53,13 @@ router.post('/blink', requireSession, async (req, res) => {
 
     const connId = await withTransaction(async (client) => {
       const id = randomUUID();
+      const encryptedKey = isEncryptionEnabled() ? encrypt(apiKey) : null;
       await client.query(
         `INSERT INTO wallet_connections
-           (id, session_id, wallet_type, nickname, external_id, is_active, last_synced_at)
-         VALUES ($1, $2, 'blink', $3, $4, TRUE, NOW())
+           (id, session_id, wallet_type, nickname, external_id, encrypted_key, is_active, last_synced_at)
+         VALUES ($1, $2, 'blink', $3, $4, $5, TRUE, NOW())
          ON CONFLICT DO NOTHING`,
-        [id, req.sessionId, nickname, blinkWallet.walletId]
+        [id, req.sessionId, nickname, blinkWallet.walletId, encryptedKey]
       );
 
       // Cache initial transactions
@@ -186,8 +188,9 @@ router.post('/:id/sync', requireSession, async (req, res) => {
   try {
     const wallet = await queryOne<{
       wallet_type: string; external_id: string | null; session_id: string;
+      encrypted_key: string | null;
     }>(
-      `SELECT wallet_type, external_id, session_id
+      `SELECT wallet_type, external_id, session_id, encrypted_key
        FROM wallet_connections WHERE id = $1 AND is_active = TRUE`,
       [req.params.id]
     );
@@ -202,11 +205,30 @@ router.post('/:id/sync', requireSession, async (req, res) => {
       return;
     }
 
-    // API key is not stored server-side; client must resend it for sync
-    const { apiKey } = z.object({ apiKey: z.string() }).parse(req.body);
+    // Prefer the stored (encrypted) key; otherwise the client must resend it.
+    const { apiKey: bodyKey } = z
+      .object({ apiKey: z.string().optional() })
+      .parse(req.body);
+    const storedKey = wallet.encrypted_key ? decrypt(wallet.encrypted_key) : null;
+    const apiKey = storedKey ?? bodyKey;
+    if (!apiKey) {
+      res.status(400).json({ error: 'API key required to sync this wallet' });
+      return;
+    }
     if (!BlinkConnector.validateKeyFormat(apiKey)) {
       res.status(400).json({ error: 'Invalid API key format' });
       return;
+    }
+
+    // Backfill encryption if a key arrived from the client and none was stored.
+    if (!storedKey && bodyKey && isEncryptionEnabled()) {
+      const enc = encrypt(bodyKey);
+      if (enc) {
+        await query(
+          `UPDATE wallet_connections SET encrypted_key = $1 WHERE id = $2`,
+          [enc, req.params.id]
+        );
+      }
     }
 
     const connector = new BlinkConnector(apiKey);

@@ -58,4 +58,8 @@ export const config = {
   cors: {
     origin: optional('CORS_ORIGIN', 'http://localhost:5173'),
   },
+
+  encryption: {
+    key: optional('ENCRYPTION_KEY', ''),
+  },
 } as const;

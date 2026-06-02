@@ -87,7 +87,7 @@ export function NWCConnect({
       setNickname(name)
 
       const conn = await api.connectNwc(token, info.pubkey, name)
-      storeNwcUri(conn.walletConnId, candidate)
+      await storeNwcUri(conn.walletConnId, candidate)
 
       if (info.balanceSats !== null) setBalanceSats(info.balanceSats)
 

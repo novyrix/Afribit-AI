@@ -25,22 +25,33 @@ type RawNwcTx = {
   description?: string
 }
 
+import { secureSet, secureGet, secureRemove } from './secureStore'
+
 const KEY_PREFIX = 'sats_nwc_'
 
 export function isNwcUri(value: string): boolean {
   return /^nostr\+walletconnect:\/\/[0-9a-f]{2,}/i.test(value.trim())
 }
 
-export function storeNwcUri(walletConnId: string, uri: string): void {
-  try { localStorage.setItem(KEY_PREFIX + walletConnId, uri) } catch { /* noop */ }
+export async function storeNwcUri(walletConnId: string, uri: string): Promise<void> {
+  await secureSet(KEY_PREFIX + walletConnId, uri)
 }
 
-export function loadNwcUri(walletConnId: string): string | null {
-  try { return localStorage.getItem(KEY_PREFIX + walletConnId) } catch { return null }
+export async function loadNwcUri(walletConnId: string): Promise<string | null> {
+  const name = KEY_PREFIX + walletConnId
+  const secure = await secureGet(name)
+  if (secure) return secure
+  let legacy: string | null = null
+  try { legacy = localStorage.getItem(name) } catch { return null }
+  if (legacy && isNwcUri(legacy)) {
+    await secureSet(name, legacy)
+    return legacy
+  }
+  return null
 }
 
 export function clearNwcUri(walletConnId: string): void {
-  try { localStorage.removeItem(KEY_PREFIX + walletConnId) } catch { /* noop */ }
+  secureRemove(KEY_PREFIX + walletConnId)
 }
 
 function msatToSat(v: number | undefined | null): number {
