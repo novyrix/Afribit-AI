@@ -8,6 +8,7 @@ const NAV = [
   { to: '/developers', label: 'Overview', exact: true },
   { to: '/developers/connectors', label: 'Connectors', exact: false },
   { to: '/developers/spec', label: 'Spec', exact: false },
+  { to: '/developers/playground', label: 'Playground', exact: false },
 ]
 
 function NavLink({

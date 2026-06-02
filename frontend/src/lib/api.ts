@@ -95,6 +95,19 @@ export type ConnectorManifest = {
   last_reviewed?: string
 }
 
+export type ConnectorTestMethodResult = {
+  method: string
+  ok: boolean
+  ms: number
+  error?: string
+}
+
+export type ConnectorTestResult = {
+  connector: string
+  results: ConnectorTestMethodResult[]
+  response: { balances: unknown[]; transactions: unknown[] } | null
+}
+
 async function json<T>(res: Response): Promise<T> {
   const text = await res.text()
   let data: any = null
@@ -276,5 +289,14 @@ export const api = {
   async getConnector(id: string) {
     const res = await fetch(`${API_URL}/connectors/${encodeURIComponent(id)}`)
     return json<ConnectorManifest>(res)
+  },
+
+  async testConnector(id: string, credential?: string) {
+    const res = await fetch(`${API_URL}/connectors/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credential ? { credential } : {}),
+    })
+    return json<ConnectorTestResult>(res)
   },
 }
