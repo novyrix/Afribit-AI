@@ -25,12 +25,19 @@ app.use(helmet({
   },
 }));
 
-// ── CORS — Vercel frontend + local dev ────────────────────────────────────────
+// ── CORS — Vercel + afribit.africa frontends + local dev ──────────────────────
+app.use((req, res, next) => {
+  if (req.headers['access-control-request-private-network']) {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
+  next();
+});
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     const allowed = [config.cors.origin, 'http://localhost:5173', 'http://localhost:3000'];
     if (allowed.includes(origin)) return cb(null, true);
+    if (/^https:\/\/([a-z0-9-]+\.)?afribit\.africa$/i.test(origin)) return cb(null, true);
     if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return cb(null, true);
     return cb(new Error(`CORS blocked: ${origin}`));
   },
