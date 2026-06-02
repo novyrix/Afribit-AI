@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { FediMark, Check, ChevronRight } from './ui/Icons'
 import { Glass, PillButton } from './ui/Glass'
 import { api } from '../lib/api'
+import { enableWebln, getWeblnBalanceSats, listWeblnTransactions } from '../lib/webln'
+import { isInFedi, readFediFederation } from '../lib/fedi'
 
 const SPRING = { type: 'spring' as const, damping: 20, stiffness: 220 }
 
@@ -16,11 +18,46 @@ export function FediConnect({
   onHelp: () => void
   onDone: (walletConnId: string) => void
 }) {
+  const inFedi = isInFedi()
   const [phase, setPhase] = useState<Phase>('input')
+  const [manual, setManual] = useState(!inFedi)
   const [federationId, setFederationId] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [nickname, setNickname] = useState<string | null>(null)
+
+  async function connectInFedi() {
+    setError(null)
+    setPhase('connecting')
+    try {
+      const info = await enableWebln()
+      const fed = await readFediFederation()
+      const name = fed.name?.trim() || info.alias?.trim() || 'Fedi Wallet'
+      const fedId = fed.id?.trim() || info.pubkey?.trim() || 'fedi-mini-app'
+      setNickname(name)
+
+      const conn = await api.connectFedi(token, fedId, undefined, name)
+
+      const bal = await getWeblnBalanceSats()
+      if (bal !== null) {
+        try { await api.setWalletBalance(token, 'fedi', conn.walletConnId, bal) }
+        catch { /* balance is best-effort */ }
+      }
+
+      const txs = await listWeblnTransactions(100)
+      if (txs.length > 0) {
+        try { await api.pushFediTransactions(token, conn.walletConnId, txs) }
+        catch { /* tx import is best-effort */ }
+      }
+
+      setPhase('success')
+      setTimeout(() => onDone(conn.walletConnId), 1400)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Connection failed'
+      setError(msg)
+      setPhase('error')
+    }
+  }
 
   async function submit() {
     if (!federationId.trim()) return
@@ -81,45 +118,78 @@ export function FediConnect({
                   transition={SPRING}
                   className="flex flex-col gap-3"
                 >
-                  <p className="font-text text-14 text-white/55 text-center">
-                    Enter your federation details.
-                  </p>
-                  <input
-                    type="text"
-                    value={federationId}
-                    onChange={(e) => setFederationId(e.target.value)}
-                    placeholder="Federation ID"
-                    disabled={phase === 'connecting'}
-                    autoFocus
-                    className="w-full h-12 px-4 rounded-glass bg-white/[0.06] border border-white/15
-                               font-mono text-14 text-white placeholder:text-white/25
-                               focus:outline-none focus:border-bitcoin/60 transition-colors"
-                  />
-                  <input
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="Invite code (optional, fed1…)"
-                    disabled={phase === 'connecting'}
-                    className="w-full h-12 px-4 rounded-glass bg-white/[0.06] border border-white/15
-                               font-mono text-14 text-white placeholder:text-white/25
-                               focus:outline-none focus:border-bitcoin/60 transition-colors"
-                  />
-                  {error && (
-                    <p className="font-text text-13 text-negative text-center">{error}</p>
+                  {inFedi && !manual ? (
+                    <>
+                      <p className="font-text text-14 text-white/55 text-center">
+                        Link the wallet on this device. Fedi will ask you to allow access.
+                      </p>
+                      {error && (
+                        <p className="font-text text-13 text-negative text-center">{error}</p>
+                      )}
+                      <PillButton
+                        onClick={connectInFedi}
+                        disabled={phase === 'connecting'}
+                      >
+                        {phase === 'connecting' ? 'Connecting…' : 'Connect wallet'}
+                      </PillButton>
+                      <button
+                        onClick={() => { setError(null); setManual(true) }}
+                        className="font-text text-13 text-white/45 hover:text-white/70 transition-colors"
+                      >
+                        Enter federation details instead
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-text text-14 text-white/55 text-center">
+                        Enter your federation details.
+                      </p>
+                      <input
+                        type="text"
+                        value={federationId}
+                        onChange={(e) => setFederationId(e.target.value)}
+                        placeholder="Federation ID"
+                        disabled={phase === 'connecting'}
+                        autoFocus
+                        className="w-full h-12 px-4 rounded-glass bg-white/[0.06] border border-white/15
+                                   font-mono text-14 text-white placeholder:text-white/25
+                                   focus:outline-none focus:border-bitcoin/60 transition-colors"
+                      />
+                      <input
+                        type="text"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value)}
+                        placeholder="Invite code (optional, fed1…)"
+                        disabled={phase === 'connecting'}
+                        className="w-full h-12 px-4 rounded-glass bg-white/[0.06] border border-white/15
+                                   font-mono text-14 text-white placeholder:text-white/25
+                                   focus:outline-none focus:border-bitcoin/60 transition-colors"
+                      />
+                      {error && (
+                        <p className="font-text text-13 text-negative text-center">{error}</p>
+                      )}
+                      <button
+                        onClick={onHelp}
+                        className="font-text text-13 text-bitcoin hover:opacity-80 transition-opacity"
+                      >
+                        How do I find these?
+                      </button>
+                      <PillButton
+                        onClick={submit}
+                        disabled={!federationId.trim() || phase === 'connecting'}
+                      >
+                        {phase === 'connecting' ? 'Connecting…' : 'Connect'}
+                      </PillButton>
+                      {inFedi && (
+                        <button
+                          onClick={() => { setError(null); setManual(false) }}
+                          className="font-text text-13 text-white/45 hover:text-white/70 transition-colors"
+                        >
+                          Use this device's wallet instead
+                        </button>
+                      )}
+                    </>
                   )}
-                  <button
-                    onClick={onHelp}
-                    className="font-text text-13 text-bitcoin hover:opacity-80 transition-opacity"
-                  >
-                    How do I find these?
-                  </button>
-                  <PillButton
-                    onClick={submit}
-                    disabled={!federationId.trim() || phase === 'connecting'}
-                  >
-                    {phase === 'connecting' ? 'Connecting…' : 'Connect'}
-                  </PillButton>
                 </motion.div>
               )}
 

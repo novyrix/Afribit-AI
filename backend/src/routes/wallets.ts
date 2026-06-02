@@ -150,8 +150,8 @@ router.get('/', requireSession, async (req, res) => {
 /** GET /wallets/:id/balance — balance for a specific wallet */
 router.get('/:id/balance', requireSession, async (req, res) => {
   try {
-    const wallet = await queryOne<{ wallet_type: string; nickname: string; session_id: string }>(
-      `SELECT wallet_type, nickname, session_id FROM wallet_connections WHERE id = $1 AND is_active = TRUE`,
+    const wallet = await queryOne<{ wallet_type: string; nickname: string; session_id: string; cached_balance_sats: string | null }>(
+      `SELECT wallet_type, nickname, session_id, cached_balance_sats FROM wallet_connections WHERE id = $1 AND is_active = TRUE`,
       [req.params.id]
     );
 
@@ -168,7 +168,12 @@ router.get('/:id/balance', requireSession, async (req, res) => {
     );
 
     const rate = await getCurrentRate();
-    const sats = parseInt(row?.balance_sats ?? '0', 10);
+    const derived = parseInt(row?.balance_sats ?? '0', 10);
+    // Prefer the wallet-reported authoritative balance when available
+    // (e.g. WebLN/NWC get_balance for Fedi mini-app connections).
+    const sats = wallet.cached_balance_sats !== null
+      ? parseInt(wallet.cached_balance_sats, 10)
+      : derived;
 
     res.json({
       walletConnId: req.params.id,
@@ -409,6 +414,43 @@ router.post(['/fedi/:id/push', '/webln/:id/push', '/nwc/:id/push'], requireSessi
     else {
       console.error('[wallets/fedi/push]', err);
       res.status(500).json({ error: 'Failed to push transactions' });
+    }
+  }
+});
+
+const SetBalanceSchema = z.object({
+  balanceSats: z.number().int().min(0),
+});
+
+/** PUT /wallets/fedi|webln|nwc/:id/balance — client sets the authoritative balance */
+router.put(['/fedi/:id/balance', '/webln/:id/balance', '/nwc/:id/balance'], requireSession, async (req, res) => {
+  try {
+    const wallet = await queryOne<{ wallet_type: string; session_id: string }>(
+      `SELECT wallet_type, session_id FROM wallet_connections WHERE id = $1 AND is_active = TRUE`,
+      [req.params.id]
+    );
+
+    if (!wallet || wallet.session_id !== req.sessionId) {
+      res.status(404).json({ error: 'Wallet not found' });
+      return;
+    }
+    if (wallet.wallet_type !== 'fedi' && wallet.wallet_type !== 'webln' && wallet.wallet_type !== 'nwc') {
+      res.status(400).json({ error: 'This endpoint is only for Fedi, WebLN or NWC wallets' });
+      return;
+    }
+
+    const { balanceSats } = SetBalanceSchema.parse(req.body);
+    await query(
+      `UPDATE wallet_connections SET cached_balance_sats = $1, last_synced_at = NOW() WHERE id = $2`,
+      [balanceSats, req.params.id]
+    );
+
+    res.json({ walletConnId: req.params.id, balanceSats });
+  } catch (err) {
+    if (err instanceof z.ZodError) res.status(400).json({ error: err.errors });
+    else {
+      console.error('[wallets/balance/set]', err);
+      res.status(500).json({ error: 'Failed to set balance' });
     }
   }
 });

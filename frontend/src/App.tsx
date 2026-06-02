@@ -53,7 +53,7 @@ export default function App() {
       .then(({ wallets }) => {
         setHasBlink(wallets.some((w) => w.walletType === 'blink'))
         setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
-        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms' || phase === 'aiPrefs' || phase === 'ecosystem')) {
+        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms' || phase === 'aiPrefs')) {
           setPhase('main')
           localStorage.setItem(PHASE_KEY, 'main')
         }

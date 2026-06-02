@@ -25,8 +25,14 @@ CREATE TABLE IF NOT EXISTS wallet_connections (
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   connected_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_synced_at TIMESTAMPTZ,
+  -- Authoritative balance reported by the wallet itself (e.g. WebLN/NWC get_balance
+  -- inside Fedi). NULL means "derive balance from cached transactions".
+  cached_balance_sats BIGINT,
   metadata      JSONB NOT NULL DEFAULT '{}'
 );
+
+ALTER TABLE wallet_connections
+  ADD COLUMN IF NOT EXISTS cached_balance_sats BIGINT;
 
 CREATE INDEX IF NOT EXISTS idx_wallet_connections_session
   ON wallet_connections(session_id) WHERE is_active = TRUE;

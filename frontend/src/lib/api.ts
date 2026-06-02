@@ -225,6 +225,40 @@ export const api = {
     return json<{ walletConnId: string; federationId: string }>(res)
   },
 
+  async pushFediTransactions(
+    token: string,
+    walletConnId: string,
+    transactions: Array<{
+      externalId: string
+      direction: 'in' | 'out'
+      amountSats: number
+      feeSats: number
+      memo: string | null
+      occurredAt: string
+    }>,
+  ) {
+    const res = await fetch(`${API_URL}/wallets/fedi/${walletConnId}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ transactions }),
+    })
+    return json<{ pushed: number; inserted: number; skipped: number }>(res)
+  },
+
+  async setWalletBalance(
+    token: string,
+    kind: 'fedi' | 'webln' | 'nwc',
+    walletConnId: string,
+    balanceSats: number,
+  ) {
+    const res = await fetch(`${API_URL}/wallets/${kind}/${walletConnId}/balance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ balanceSats }),
+    })
+    return json<{ walletConnId: string; balanceSats: number }>(res)
+  },
+
   async connectWebln(token: string, externalId: string | null, nickname?: string) {
     const res = await fetch(`${API_URL}/wallets/webln`, {
       method: 'POST',
