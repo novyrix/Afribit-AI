@@ -14,6 +14,7 @@ import connectorsRouter   from './routes/connectors';
 import { startHealthMonitor } from './connectors/health';
 import healthRouter       from './routes/health';
 import webhooksRouter     from './routes/webhooks';
+import inflationRouter    from './routes/inflation';
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/ai',           aiRouter);
 app.use('/rates',        ratesRouter);
 app.use('/transactions', transactionsRouter);
 app.use('/connectors',   connectorsRouter);  // Public connector directory
+app.use('/inflation',    inflationRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
