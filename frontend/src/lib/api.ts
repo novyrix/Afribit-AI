@@ -50,6 +50,51 @@ export type Summary = {
   kesPerBtc: number
 }
 
+export type ConnectorStatus = 'verified' | 'in_review' | 'deprecated' | 'community'
+export type ConnectorCategory = 'wallet' | 'exchange' | 'on_ramp' | 'off_ramp' | 'data'
+export type ConnectorAuthType =
+  | 'api_key'
+  | 'oauth'
+  | 'invite_code'
+  | 'nwc_uri'
+  | 'none'
+
+export type ConnectorManifest = {
+  id: string
+  version: string
+  name: string
+  description: string
+  category: ConnectorCategory
+  logo: string
+  color: string
+  website: string
+  documentation: string
+  license: string
+  author: { name: string; github: string; contact?: string }
+  capabilities: {
+    read_balance: boolean
+    read_transactions: boolean
+    read_profile: boolean
+    create_invoice: boolean
+    send_payment: boolean
+    on_ramp: boolean
+    off_ramp: boolean
+  }
+  auth: {
+    type: ConnectorAuthType
+    label?: string
+    placeholder?: string
+    validation_regex?: string
+    help_url?: string
+    help_text?: string
+  }
+  supported_currencies: string[]
+  supported_networks: string[]
+  regions: string[]
+  status: ConnectorStatus
+  last_reviewed?: string
+}
+
 async function json<T>(res: Response): Promise<T> {
   const text = await res.text()
   let data: any = null
@@ -217,5 +262,19 @@ export const api = {
       headers: authHeaders(token),
     })
     return json<Summary>(res)
+  },
+
+  async listConnectors(params?: { category?: string; status?: string }) {
+    const qs = new URLSearchParams()
+    if (params?.category) qs.set('category', params.category)
+    if (params?.status) qs.set('status', params.status)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    const res = await fetch(`${API_URL}/connectors${suffix}`)
+    return json<{ connectors: ConnectorManifest[]; total: number }>(res)
+  },
+
+  async getConnector(id: string) {
+    const res = await fetch(`${API_URL}/connectors/${encodeURIComponent(id)}`)
+    return json<ConnectorManifest>(res)
   },
 }
