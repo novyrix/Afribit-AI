@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { listManifests, getManifest, loadConnector } from '../connectors/registry';
+import { getHealthSnapshot } from '../connectors/health';
 import type { ConnectorAuth, AuthType } from '../connectors/spec';
 
 const router = Router();
@@ -36,6 +37,11 @@ router.get('/', (req, res) => {
   if (category) manifests = manifests.filter((m) => m.category === category);
   if (status) manifests = manifests.filter((m) => m.status === status);
   res.json({ connectors: manifests, total: manifests.length });
+});
+
+/** GET /connectors/health — public connector network health board */
+router.get('/health', (_req, res) => {
+  res.json({ connectors: getHealthSnapshot(), checkedAt: Date.now() });
 });
 
 /** GET /connectors/:id — single connector manifest */

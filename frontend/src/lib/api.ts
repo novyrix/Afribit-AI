@@ -108,6 +108,23 @@ export type ConnectorTestResult = {
   response: { balances: unknown[]; transactions: unknown[] } | null
 }
 
+export type ConnectorHealthStatus = 'online' | 'slow' | 'offline' | 'unknown'
+
+export type ConnectorHealth = {
+  id: string
+  name: string
+  status: ConnectorHealthStatus
+  latencyMs: number | null
+  uptime: number | null
+  samples: number
+  lastChecked: number | null
+}
+
+export type ConnectorHealthResponse = {
+  connectors: ConnectorHealth[]
+  checkedAt: number
+}
+
 async function json<T>(res: Response): Promise<T> {
   const text = await res.text()
   let data: any = null
@@ -298,5 +315,10 @@ export const api = {
       body: JSON.stringify(credential ? { credential } : {}),
     })
     return json<ConnectorTestResult>(res)
+  },
+
+  async getConnectorHealth() {
+    const res = await fetch(`${API_URL}/connectors/health`)
+    return json<ConnectorHealthResponse>(res)
   },
 }

@@ -11,6 +11,7 @@ import aiRouter           from './routes/ai';
 import ratesRouter        from './routes/rates';
 import transactionsRouter from './routes/transactions';
 import connectorsRouter   from './routes/connectors';
+import { startHealthMonitor } from './connectors/health';
 import healthRouter       from './routes/health';
 import webhooksRouter     from './routes/webhooks';
 
@@ -80,6 +81,7 @@ app.listen(config.port, () => {
   console.log(`[sats] Environment: ${config.nodeEnv}`);
   console.log(`[sats] CORS origin: ${config.cors.origin}`);
   console.log(`[sats] AI routing: fast=${config.openrouter.models.fast} mid=${config.openrouter.models.mid} heavy=${config.openrouter.models.heavy}`);
+  startHealthMonitor();
 });
 
 export default app;
