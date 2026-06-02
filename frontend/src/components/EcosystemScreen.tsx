@@ -36,7 +36,7 @@ export function EcosystemScreen({
     { id: 'blink',  name: 'Blink',  logo: '/logos/blink.svg',  status: hasBlink ? 'connected' : 'available', angle: -90 },
     { id: 'fedi',   name: 'Fedi',   logo: '/logos/fedi.png',   status: hasFedi  ? 'connected' : 'available', angle:   0 },
     { id: 'bitika', name: 'Bitika', logo: '/logos/bitika.png', status: 'soon',                               angle:  90 },
-    { id: 'minmo',  name: 'Minmo',  logo: '/logos/minmo.png',  status: 'soon',                               angle: 180 },
+    { id: 'minmo',  name: 'Minmo',  logo: '/logos/minmo.svg',  status: 'soon',                               angle: 180 },
   ], [hasBlink, hasFedi])
 
   function tap(s: Service) {

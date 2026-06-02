@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS wallet_connections (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id    UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  wallet_type   VARCHAR(20) NOT NULL CHECK (wallet_type IN ('blink', 'fedi', 'byok')),
+  wallet_type   VARCHAR(20) NOT NULL CHECK (wallet_type IN ('blink', 'fedi', 'byok', 'webln', 'nwc')),
   nickname      VARCHAR(100) NOT NULL DEFAULT '',
   -- encrypted_key is AES-GCM ciphertext; we store it here as a backup
   -- The frontend also stores it encrypted in IndexedDB

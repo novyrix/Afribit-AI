@@ -131,7 +131,15 @@ router.get('/', requireSession, async (req, res) => {
        ORDER BY connected_at ASC`,
       [req.sessionId]
     );
-    res.json(wallets);
+    res.json(wallets.map((w) => ({
+      id: w.id,
+      walletType: w.wallet_type,
+      externalId: w.external_id,
+      nickname: w.nickname,
+      status: 'connected',
+      lastSyncedAt: w.last_synced_at,
+      createdAt: w.connected_at,
+    })));
   } catch {
     res.status(500).json({ error: 'Failed to fetch wallets' });
   }
