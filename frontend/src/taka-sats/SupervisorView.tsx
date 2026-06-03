@@ -8,7 +8,7 @@ import { enableWebln, getWeblnBalanceSats, isWeblnAvailable } from '../lib/webln
 const AMBER = '#FFB547'
 const BG = '#0F0D0B'
 
-type View = 'home' | 'scan' | 'identified' | 'log' | 'confirm' | 'paying' | 'result' | 'today' | 'earnings'
+type View = 'home' | 'scan' | 'identified' | 'log' | 'confirm' | 'paying' | 'result' | 'today' | 'earnings' | 'register'
 type Scanned = { collector_id: string; display_id: string; name: string; status: string; lifetime_sats: number }
 type LogDraft = { material_type: string; weight_kg: string; collection_point: string; notes: string }
 type PayResult = { status: string; collection_ref: string; collector_sats?: number; supervisor_sats?: number; total_sats?: number; error?: string }
@@ -42,8 +42,16 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   const [today, setToday] = useState<{ collections: CollectionRow[]; total_weight_kg: number; total_sats: number } | null>(null)
   const [earnings, setEarnings] = useState<{ today_sats: number; week_sats: number; month_sats: number; all_time_sats: number } | null>(null)
 
+  const [cameraFailed, setCameraFailed] = useState(false)
+  const [pasteInput, setPasteInput] = useState('')
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [regDraft, setRegDraft] = useState({ name: '', wallet_address: '' })
+  const [regResult, setRegResult] = useState<{ display_id: string; qr_url: string } | null>(null)
+  const [regError, setRegError] = useState<string | null>(null)
+  const [regBusy, setRegBusy] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   function refreshBalance() {
     getWeblnBalanceSats().then((b) => { if (b !== null) setWalletBalance(b) }).catch(() => {})
@@ -71,7 +79,7 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
 
   useEffect(() => {
     if (view !== 'scan') { controlsRef.current?.stop(); controlsRef.current = null; return }
-    setScanError(null)
+    setScanError(null); setCameraFailed(false); setPasteInput(''); setFileError(null)
     const reader = new BrowserQRCodeReader()
     let active = true
     reader.decodeFromVideoDevice(undefined, videoRef.current!, (res) => {
@@ -81,7 +89,7 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
       active = false
       controlsRef.current?.stop()
       handleScan(parsed.id, parsed.k)
-    }).then((c) => { controlsRef.current = c }).catch(() => setScanError('Camera unavailable. Check permissions.'))
+    }).then((c) => { controlsRef.current = c }).catch(() => { setScanError('Camera unavailable — use a photo or paste the card link below.'); setCameraFailed(true) })
     return () => { active = false; controlsRef.current?.stop(); controlsRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view])
@@ -104,6 +112,45 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
       setView('identified')
     } catch {
       vibrate([120, 80, 120]); setScanError('Could not verify card. Try again.')
+    }
+  }
+
+  async function handleFileCapture(file: File) {
+    setFileError(null)
+    try {
+      const url = URL.createObjectURL(file)
+      const reader = new BrowserQRCodeReader()
+      const result = await reader.decodeFromImageUrl(url)
+      URL.revokeObjectURL(url)
+      const parsed = parseCardData(result.getText())
+      if (!parsed) { setFileError('No valid QR code found in photo. Try a clearer photo.'); return }
+      handleScan(parsed.id, parsed.k)
+    } catch {
+      setFileError('Could not read QR from photo. Try again or paste the card link.')
+    }
+  }
+
+  function handlePaste() {
+    const parsed = parseCardData(pasteInput.trim())
+    if (!parsed) { setScanError('Invalid link. Paste the full collector card URL.'); return }
+    setScanError(null)
+    handleScan(parsed.id, parsed.k)
+  }
+
+  async function submitRegister() {
+    if (!regDraft.name.trim()) return
+    setRegBusy(true); setRegError(null)
+    try {
+      const r = await takaApi.supervisorRegisterCollector(token, {
+        name: regDraft.name.trim(),
+        wallet_address: regDraft.wallet_address.trim() || undefined,
+        wallet_type: 'fedi',
+      })
+      setRegResult({ display_id: r.display_id, qr_url: r.qr_url })
+    } catch (e) {
+      setRegError(e instanceof Error ? e.message : 'Registration failed')
+    } finally {
+      setRegBusy(false)
     }
   }
 
@@ -182,22 +229,30 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
 
         <AnimatePresence mode="wait">
           {view === 'home' && (
-            <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3 mt-5">
-              {[
-                { k: 'scan', t: 'New collection', s: 'Scan a card' },
-                { k: 'today', t: "Today's log", s: 'Verified pickups' },
-                { k: 'earnings', t: 'My earnings', s: 'Fees received' },
-              ].map((tile) => (
-                <button
-                  key={tile.k}
-                  onClick={() => { if (tile.k === 'today') { takaApi.supervisorToday(token).then(setToday).catch(() => {}) } if (tile.k === 'earnings') { takaApi.supervisorEarnings(token).then(setEarnings).catch(() => {}) } setView(tile.k as View) }}
-                  className="glass rounded-card p-4 text-left aspect-square flex flex-col justify-end"
-                  style={{ border: `1px solid ${AMBER}22` }}
-                >
-                  <div className="font-brand font-semibold text-17 text-white">{tile.t}</div>
-                  <div className="font-ui text-12 text-white/45 mt-0.5">{tile.s}</div>
-                </button>
-              ))}
+            <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { k: 'scan', t: 'New collection', s: 'Scan a card' },
+                  { k: 'today', t: "Today's log", s: 'Verified pickups' },
+                  { k: 'earnings', t: 'My earnings', s: 'Fees received' },
+                  { k: 'register', t: 'Add collector', s: 'Register member' },
+                ].map((tile) => (
+                  <button
+                    key={tile.k}
+                    onClick={() => { if (tile.k === 'today') { takaApi.supervisorToday(token).then(setToday).catch(() => {}) } if (tile.k === 'earnings') { takaApi.supervisorEarnings(token).then(setEarnings).catch(() => {}) } setView(tile.k as View) }}
+                    className="glass rounded-card p-4 text-left aspect-square flex flex-col justify-end"
+                    style={{ border: `1px solid ${AMBER}22` }}
+                  >
+                    <div className="font-brand font-semibold text-17 text-white">{tile.t}</div>
+                    <div className="font-ui text-12 text-white/45 mt-0.5">{tile.s}</div>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => window.location.href = '/taka-sats/admin'}
+                className="w-full mt-4 h-10 rounded-glass font-ui text-13 text-white/40 hover:text-white/60"
+                style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                Admin panel ↗
+              </button>
             </motion.div>
           )}
 
@@ -205,11 +260,34 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
             <motion.div key="scan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
               <div className="relative w-full aspect-square rounded-card overflow-hidden bg-black">
                 <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-                <div className="absolute inset-[18%] rounded-2xl" style={{ border: `3px solid ${AMBER}` }} />
+                {!cameraFailed && <div className="absolute inset-[18%] rounded-2xl" style={{ border: `3px solid ${AMBER}` }} />}
               </div>
               <div className="font-ui text-14 text-white/70 text-center mt-4">Scan collector's card</div>
-              {scanError && <div className="font-ui text-13 text-negative text-center mt-2">{scanError}</div>}
-              <button onClick={() => { setScanError(null); setView('home') }} className="w-full mt-4 font-ui text-14 text-white/50">Cancel</button>
+              {scanError && <div className="font-ui text-13 text-center mt-2" style={{ color: '#FF4D4D' }}>{scanError}</div>}
+
+              {cameraFailed && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileCapture(f); e.target.value = '' }} />
+                  <button onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-11 rounded-pill font-ui text-14 font-medium"
+                    style={{ background: AMBER, color: '#0B0B0F' }}>
+                    Take photo of card
+                  </button>
+                  {fileError && <div className="font-ui text-12 text-center" style={{ color: '#FF4D4D' }}>{fileError}</div>}
+                  <div className="font-ui text-13 text-white/45 text-center">or paste the card link</div>
+                  <input value={pasteInput} onChange={(e) => setPasteInput(e.target.value)}
+                    placeholder="https://app.afribit.africa/verify?id=..."
+                    className="w-full h-11 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-13 text-white outline-none" />
+                  <button disabled={!pasteInput.trim()} onClick={handlePaste}
+                    className="w-full h-11 rounded-pill font-ui text-14 disabled:opacity-40"
+                    style={{ background: 'rgba(255,181,71,0.15)', color: AMBER, border: `1px solid ${AMBER}40` }}>
+                    Verify card link
+                  </button>
+                </div>
+              )}
+
+              <button onClick={() => { setScanError(null); setCameraFailed(false); setView('home') }} className="w-full mt-4 font-ui text-14 text-white/50">Cancel</button>
             </motion.div>
           )}
 
@@ -348,6 +426,49 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                 </div>
               ))}
               <button onClick={() => setView('home')} className="w-full mt-2 font-ui text-14 text-white/50">Back</button>
+            </motion.div>
+          )}
+
+          {view === 'register' && (
+            <motion.div key="register" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5 flex flex-col gap-4">
+              {regResult ? (
+                <div className="glass rounded-card p-5">
+                  <div className="font-mono text-[10px] tracking-[2px] uppercase mb-3" style={{ color: '#00C896' }}>Collector Registered</div>
+                  <div className="font-brand font-semibold text-18 text-white">{regDraft.name}</div>
+                  <div className="font-mono text-13 text-white/50 mt-1">{regResult.display_id}</div>
+                  <div className="font-ui text-13 text-white/50 mt-4 mb-1">Card link (share with collector):</div>
+                  <div className="font-mono text-11 text-white/70 break-all bg-white/5 rounded-glass p-3">{regResult.qr_url}</div>
+                  <button onClick={() => navigator.clipboard?.writeText(regResult.qr_url).catch(() => {})}
+                    className="w-full mt-3 h-10 rounded-pill font-ui text-14" style={{ background: AMBER, color: '#0B0B0F' }}>
+                    Copy card link
+                  </button>
+                  <button onClick={() => { setRegResult(null); setRegDraft({ name: '', wallet_address: '' }); setRegError(null) }}
+                    className="w-full mt-3 font-ui text-14 text-white/50">Register another</button>
+                  <button onClick={() => { setRegResult(null); setView('home') }} className="w-full mt-2 font-ui text-14 text-white/50">Done</button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <div className="font-ui text-13 text-white/55 mb-2">Collector name</div>
+                    <input value={regDraft.name} onChange={(e) => setRegDraft({ ...regDraft, name: e.target.value })}
+                      placeholder="Full name" autoFocus
+                      className="w-full h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
+                  </div>
+                  <div>
+                    <div className="font-ui text-13 text-white/55 mb-2">Fedi wallet address (optional)</div>
+                    <input value={regDraft.wallet_address} onChange={(e) => setRegDraft({ ...regDraft, wallet_address: e.target.value })}
+                      placeholder="user@fedi.xyz"
+                      className="w-full h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
+                  </div>
+                  {regError && <div className="font-ui text-13 text-center" style={{ color: '#FF4D4D' }}>{regError}</div>}
+                  <button disabled={!regDraft.name.trim() || regBusy} onClick={submitRegister}
+                    className="w-full h-12 rounded-pill font-display font-semibold text-16 disabled:opacity-40"
+                    style={{ background: AMBER, color: '#0B0B0F' }}>
+                    {regBusy ? 'Registering…' : 'Register collector'}
+                  </button>
+                  <button onClick={() => setView('home')} className="font-ui text-14 text-white/50">Cancel</button>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

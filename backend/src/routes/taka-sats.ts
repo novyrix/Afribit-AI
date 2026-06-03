@@ -457,6 +457,23 @@ router.get('/supervisor/earnings', requireRole('supervisor'), async (req, res) =
   });
 });
 
+/** POST /taka-sats/supervisor/collectors — register a new collector */
+router.post('/supervisor/collectors', requireRole('supervisor'), async (req, res) => {
+  let data: z.infer<typeof CollectorSchema>;
+  try { data = CollectorSchema.parse(req.body); }
+  catch (err) { res.status(400).json({ error: err instanceof z.ZodError ? err.errors : 'Invalid request' }); return; }
+  const id = randomUUID();
+  const displayId = await nextDisplayId();
+  const qrSecret = randomBytes(32).toString('hex');
+  await query(
+    `INSERT INTO taka_sats.collectors (id, display_id, name, wallet_address, wallet_type, qr_secret, community_id, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [id, displayId, data.name, data.wallet_address ?? null, data.wallet_type ?? 'fedi', qrSecret,
+     data.community_id ?? null, data.notes ?? null],
+  );
+  res.status(201).json({ id, display_id: displayId, name: data.name, qr_url: qrUrl(displayId, qrSecret) });
+});
+
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 async function nextDisplayId(): Promise<string> {

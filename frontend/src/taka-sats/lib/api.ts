@@ -133,4 +133,9 @@ export const takaApi = {
       '/supervisor/earnings', {}, token,
     )
   },
+  supervisorRegisterCollector(token: string, payload: { name: string; wallet_address?: string; wallet_type?: string; notes?: string }) {
+    return req<{ id: string; display_id: string; name: string; qr_url: string }>(
+      '/supervisor/collectors', { method: 'POST', body: JSON.stringify(payload) }, token,
+    )
+  },
 }

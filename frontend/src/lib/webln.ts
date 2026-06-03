@@ -15,8 +15,12 @@ export type WeblnTx = {
 type RawTx = {
   type?: string
   amount?: number
+  amount_msats?: number
+  amount_msat?: number
+  amount_sats?: number
   fees_paid?: number
   feesPaid?: number
+  fees_paid_msats?: number
   settled_at?: number
   settledAt?: number
   created_at?: number
@@ -93,18 +97,33 @@ function msatToSat(v: number | undefined): number {
   return Math.max(0, Math.round(v / 1000))
 }
 
+function resolveAmountSats(raw: RawTx): number {
+  // Prefer explicit msat fields (NWC standard)
+  const msat = raw.amount_msats ?? raw.amount_msat ?? raw.amount
+  if (typeof msat === 'number' && msat > 0) {
+    const converted = msatToSat(msat)
+    // If msat conversion gives 0, the value was already in sats (< 1000 msats = < 1 sat)
+    // So treat it directly as sats
+    return converted > 0 ? converted : Math.round(msat)
+  }
+  // Explicit sat field
+  if (typeof raw.amount_sats === 'number' && raw.amount_sats > 0) return Math.round(raw.amount_sats)
+  return 0
+}
+
 function normalize(raw: RawTx, idx: number): WeblnTx | null {
-  const amountSats = msatToSat(raw.amount)
+  const amountSats = resolveAmountSats(raw)
   if (amountSats <= 0) return null
   const ts = raw.settled_at ?? raw.settledAt ?? raw.created_at ?? raw.createdAt
   const occurredAt = ts ? new Date(ts * 1000).toISOString() : new Date().toISOString()
   const externalId =
     raw.payment_hash ?? raw.paymentHash ?? raw.preimage ?? `webln-${ts ?? 'x'}-${idx}`
+  const feeMsats = raw.fees_paid_msats ?? raw.fees_paid ?? raw.feesPaid
   return {
     externalId,
     direction: raw.type === 'incoming' ? 'in' : 'out',
     amountSats,
-    feeSats: msatToSat(raw.fees_paid ?? raw.feesPaid),
+    feeSats: msatToSat(feeMsats),
     memo: raw.description ?? raw.memo ?? null,
     occurredAt,
   }
@@ -120,7 +139,9 @@ export async function listWeblnTransactions(limit = 100): Promise<WeblnTx[]> {
       raw = res?.transactions ?? []
     } else if (w.request) {
       const res = await w.request('list_transactions', { limit })
-      raw = res?.transactions ?? []
+      // NWC may wrap result: { result: { transactions: [...] } } or { transactions: [...] }
+      const payload = (res as Record<string, unknown>)?.result ?? res
+      raw = (payload as { transactions?: RawTx[] })?.transactions ?? []
     }
   } catch {
     return []
