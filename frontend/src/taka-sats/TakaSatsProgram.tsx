@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from '../lib/api'
+import { readNostrPubkey } from '../lib/fedi'
 import { ChevronRight } from '../components/ui/Icons'
 import {
   takaApi, TAKA_TOKEN_KEY, TAKA_ROLE_KEY, type TakaRole, type IdentifyResult,
@@ -39,15 +40,22 @@ export function TakaSatsProgram({
         const { wallets } = await api.listWallets(token)
         const wallet = wallets.find((w) => w.walletType === 'fedi')
           ?? wallets.find((w) => w.walletType === 'blink')
-        if (!wallet || !wallet.externalId) {
+
+        const walletType: 'fedi' | 'blink' = wallet?.walletType === 'blink' ? 'blink' : 'fedi'
+        let memberKey: string | null = wallet?.externalId ?? null
+
+        const nostrPk = await readNostrPubkey()
+        if (nostrPk) memberKey = nostrPk
+
+        if (!memberKey) {
           if (!cancelled) setState({ kind: 'user' })
           return
         }
-        const walletType = wallet.walletType === 'blink' ? 'blink' : 'fedi'
+
         const result: IdentifyResult = await takaApi.identify({
           wallet_type: walletType,
-          member_key: wallet.externalId,
-          wallet_address: wallet.externalId,
+          member_key: memberKey,
+          wallet_address: wallet?.externalId ?? memberKey,
         })
         if (cancelled) return
         if (result.role === 'user') {
