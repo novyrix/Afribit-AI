@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { api, TOKEN_KEY, type Language } from './lib/api'
 import { LaunchScreen } from './components/LaunchScreen'
+import { ChooseModeScreen } from './components/ChooseModeScreen'
+import { ProgramsDashboard } from './components/ProgramsDashboard'
 import { InstallScreen } from './components/InstallScreen'
 import { EcosystemScreen } from './components/EcosystemScreen'
 import { TermsScreen } from './components/TermsScreen'
@@ -15,11 +17,11 @@ import { NWCConnect } from './components/NWCConnect'
 import { HelpSheet } from './components/HelpSheet'
 import { MainScreen } from './components/MainScreen'
 import { BgCanvas } from './components/ui/BgCanvas'
-import { isStandalone } from './lib/pwa'
 import { isWeblnAvailable } from './lib/webln'
 
 type Phase =
-  | 'launch' | 'install' | 'terms' | 'connect' | 'programs'
+  | 'launch' | 'chooseMode' | 'programsDash'
+  | 'install' | 'terms' | 'connect' | 'programs'
   | 'ecosystem' | 'connectBlink' | 'connectFedi' | 'connectWebln' | 'connectNwc'
   | 'takaSats' | 'main'
 
@@ -56,7 +58,7 @@ export default function App() {
       .then(({ wallets }) => {
         setHasBlink(wallets.some((w) => w.walletType === 'blink'))
         setHasFedi(wallets.some((w) => w.walletType === 'fedi'))
-        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms')) {
+        if (wallets.length > 0 && (phase === 'launch' || phase === 'install' || phase === 'terms' || phase === 'chooseMode')) {
           setPhase('main')
           localStorage.setItem(PHASE_KEY, 'main')
         }
@@ -84,7 +86,21 @@ export default function App() {
         {phase === 'launch' && (
           <LaunchScreen
             key="launch"
-            onContinue={() => go(isStandalone() ? 'terms' : 'install')}
+            onContinue={() => go('chooseMode')}
+          />
+        )}
+
+        {phase === 'chooseMode' && (
+          <ChooseModeScreen
+            key="chooseMode"
+            onPrograms={() => go('programsDash')}
+          />
+        )}
+
+        {phase === 'programsDash' && (
+          <ProgramsDashboard
+            key="programsDash"
+            onSelectTaka={() => go('takaSats')}
           />
         )}
 
@@ -117,7 +133,7 @@ export default function App() {
           <TakaSatsProgram
             key="takaSats"
             token={token}
-            onBack={() => go('programs')}
+            onBack={() => go('programsDash')}
             onHome={() => go('main')}
           />
         )}

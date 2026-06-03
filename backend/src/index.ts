@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
-import { globalLimiter } from './middleware/rateLimit';
+import { globalLimiter, takaSatsLimiter } from './middleware/rateLimit';
 
 import sessionRouter      from './routes/session';
 import walletsRouter      from './routes/wallets';
@@ -18,6 +18,11 @@ import inflationRouter    from './routes/inflation';
 import takaSatsRouter     from './routes/taka-sats';
 
 const app = express();
+
+// Trust the first proxy hop (Cloudflare / Nginx / Tailscale ingress).
+// This makes req.ip resolve to the real client IP from X-Forwarded-For
+// so rate-limit buckets are per-user, not per-proxy.
+app.set('trust proxy', 1);
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet({
@@ -65,8 +70,8 @@ app.use('/ai',           aiRouter);
 app.use('/rates',        ratesRouter);
 app.use('/transactions', transactionsRouter);
 app.use('/connectors',   connectorsRouter);  // Public connector directory
-app.use('/inflation',    inflationRouter);
-app.use('/taka-sats',    takaSatsRouter);
+  app.use('/inflation',    inflationRouter);
+  app.use('/taka-sats',    takaSatsLimiter, takaSatsRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

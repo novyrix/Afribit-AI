@@ -77,7 +77,7 @@ export function LaunchScreen({ onContinue }: { onContinue: () => void }) {
             </div>
 
             <div className="font-brand font-semibold text-[40px] leading-none text-white tracking-tight">
-              <StaggerChars text="Afribit AI" delay={2100} perChar={50} />
+              <StaggerChars text="Afribit Programs" delay={2100} perChar={50} />
             </div>
 
             <motion.div

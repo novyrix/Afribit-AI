@@ -7,6 +7,7 @@ export const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },
+  skip: (req) => req.path === '/health',
 });
 
 export const aiLimiter = rateLimit({
@@ -16,4 +17,13 @@ export const aiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'AI request limit reached. Please wait a few minutes.' },
   keyGenerator: (req) => req.sessionId ?? req.ip ?? 'unknown',
+});
+
+export const takaSatsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
 });
