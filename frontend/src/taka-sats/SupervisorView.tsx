@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BrowserQRCodeReader } from '@zxing/browser'
+import jsQR from 'jsqr'
 import { takaApi, type CollectionRow } from './lib/api'
 import { payLightningAddress } from './lib/pay'
 import { enableWebln, getWeblnBalanceSats, isWeblnAvailable } from '../lib/webln'
@@ -40,6 +40,26 @@ function parseFediQr(text: string): { wallet_address?: string } {
   return {}
 }
 
+async function decodeQrFromFile(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' })
+      resolve(code?.data ?? null)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
+    img.src = url
+  })
+}
+
 export function SupervisorView({ token, onHome }: { token: string; onHome: () => void }) {
   const [view, setView] = useState<View>('home')
   const [me, setMe] = useState<{ display_name: string; assigned_points: string[] } | null>(null)
@@ -66,7 +86,8 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   const [regBusy, setRegBusy] = useState(false)
   const [regScanError, setRegScanError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const controlsRef = useRef<{ stop: () => void } | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const scanActiveRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const regFileRef = useRef<HTMLInputElement | null>(null)
 
@@ -116,19 +137,62 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   }, [token])
 
   useEffect(() => {
-    if (view !== 'scan') { controlsRef.current?.stop(); controlsRef.current = null; return }
+    if (view !== 'scan') {
+      scanActiveRef.current = false
+      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null }
+      return
+    }
     setScanError(null); setCameraFailed(false); setPasteInput(''); setFileError(null)
-    const reader = new BrowserQRCodeReader()
-    let active = true
-    reader.decodeFromVideoDevice(undefined, videoRef.current!, (res) => {
-      if (!active || !res) return
-      const parsed = parseCardData(res.getText())
-      if (!parsed) return
-      active = false
-      controlsRef.current?.stop()
-      handleScan(parsed.id, parsed.k)
-    }).then((c) => { controlsRef.current = c }).catch(() => { setScanError('Camera unavailable — use a photo or paste the card link below.'); setCameraFailed(true) })
-    return () => { active = false; controlsRef.current?.stop(); controlsRef.current = null }
+    scanActiveRef.current = true
+    const video = videoRef.current
+    if (!video) return
+    const v = video
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } })
+      .then((stream) => {
+        if (!scanActiveRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        v.srcObject = stream
+        v.setAttribute('autoplay', 'true')
+        v.setAttribute('playsinline', 'true')
+        v.setAttribute('muted', 'true')
+        v.play().catch(() => {})
+
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')!
+        let lastScan = 0
+
+        function frame() {
+          if (!scanActiveRef.current) return
+          const now = Date.now()
+          if (now - lastScan > 250 && v.readyState >= 2 && v.videoWidth > 0) {
+            lastScan = now
+            canvas.width = v.videoWidth
+            canvas.height = v.videoHeight
+            ctx.drawImage(v, 0, 0)
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
+            const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'dontInvert' })
+            if (code) {
+              const parsed = parseCardData(code.data)
+              if (parsed) {
+                scanActiveRef.current = false
+                stream.getTracks().forEach((t) => t.stop())
+                streamRef.current = null
+                handleScan(parsed.id, parsed.k)
+                return
+              }
+            }
+          }
+          requestAnimationFrame(frame)
+        }
+        requestAnimationFrame(frame)
+      })
+      .catch(() => { setScanError('Camera unavailable — use a photo or paste the card link below.'); setCameraFailed(true) })
+
+    return () => {
+      scanActiveRef.current = false
+      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view])
 
@@ -155,17 +219,11 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
 
   async function handleFileCapture(file: File) {
     setFileError(null)
-    try {
-      const url = URL.createObjectURL(file)
-      const reader = new BrowserQRCodeReader()
-      const result = await reader.decodeFromImageUrl(url)
-      URL.revokeObjectURL(url)
-      const parsed = parseCardData(result.getText())
-      if (!parsed) { setFileError('No valid QR code found in photo. Try a clearer photo.'); return }
-      handleScan(parsed.id, parsed.k)
-    } catch {
-      setFileError('Could not read QR from photo. Try again or paste the card link.')
-    }
+    const text = await decodeQrFromFile(file)
+    if (!text) { setFileError('Could not read QR from photo. Try again or paste the card link.'); return }
+    const parsed = parseCardData(text)
+    if (!parsed) { setFileError('No valid collector card QR found. Try a clearer photo.'); return }
+    handleScan(parsed.id, parsed.k)
   }
 
   function handlePaste() {
@@ -194,19 +252,13 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
 
   async function handleRegQrCapture(file: File) {
     setRegScanError(null)
-    try {
-      const url = URL.createObjectURL(file)
-      const reader = new BrowserQRCodeReader()
-      const result = await reader.decodeFromImageUrl(url)
-      URL.revokeObjectURL(url)
-      const parsed = parseFediQr(result.getText())
-      if (parsed.wallet_address) {
-        setRegDraft((d) => ({ ...d, wallet_address: parsed.wallet_address! }))
-      } else {
-        setRegScanError('Could not find a Lightning address in this QR. Please enter it manually.')
-      }
-    } catch {
-      setRegScanError('Could not read QR. Try a clearer photo or enter the address manually.')
+    const text = await decodeQrFromFile(file)
+    if (!text) { setRegScanError('Could not read QR. Try a clearer photo or enter the address manually.'); return }
+    const parsed = parseFediQr(text)
+    if (parsed.wallet_address) {
+      setRegDraft((d) => ({ ...d, wallet_address: parsed.wallet_address! }))
+    } else {
+      setRegScanError('Could not find a Lightning address in this QR. Please enter it manually.')
     }
   }
 
@@ -328,7 +380,7 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
           {view === 'scan' && (
             <motion.div key="scan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
               <div className="relative w-full aspect-square rounded-card overflow-hidden bg-black">
-                <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                 {!cameraFailed && <div className="absolute inset-[18%] rounded-2xl" style={{ border: `3px solid ${AMBER}` }} />}
               </div>
               <div className="font-ui text-14 text-white/70 text-center mt-4">Scan collector's card</div>
