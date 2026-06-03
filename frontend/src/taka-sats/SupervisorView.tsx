@@ -90,6 +90,11 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   const scanActiveRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const regFileRef = useRef<HTMLInputElement | null>(null)
+  const regVideoRef = useRef<HTMLVideoElement | null>(null)
+  const regStreamRef = useRef<MediaStream | null>(null)
+  const regScanActiveRef = useRef(false)
+  const [regCamOpen, setRegCamOpen] = useState(false)
+  const [regCamFailed, setRegCamFailed] = useState(false)
 
   function toggleCurrency() {
     const next = currency === 'KES' ? 'USD' : 'KES'
@@ -140,6 +145,11 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
     if (view !== 'scan') {
       scanActiveRef.current = false
       if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null }
+      if (view !== 'register') {
+        regScanActiveRef.current = false
+        if (regStreamRef.current) { regStreamRef.current.getTracks().forEach((t) => t.stop()); regStreamRef.current = null }
+        setRegCamOpen(false)
+      }
       return
     }
     setScanError(null); setCameraFailed(false); setPasteInput(''); setFileError(null)
@@ -158,14 +168,25 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
         v.setAttribute('muted', 'true')
         v.play().catch(() => {})
 
+        // If the stream starts but the video never produces frames (Fedi webview black screen),
+        // fall back to the manual options after 4.5 s.
+        let gotFrames = false
+        const blackScreenTimer = setTimeout(() => {
+          if (scanActiveRef.current && !gotFrames) {
+            setScanError('Camera stream is inactive — use a photo or paste the card link below.')
+            setCameraFailed(true)
+          }
+        }, 4500)
+
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d')!
         let lastScan = 0
 
         function frame() {
-          if (!scanActiveRef.current) return
+          if (!scanActiveRef.current) { clearTimeout(blackScreenTimer); return }
           const now = Date.now()
           if (now - lastScan > 250 && v.readyState >= 2 && v.videoWidth > 0) {
+            if (!gotFrames) { gotFrames = true; clearTimeout(blackScreenTimer) }
             lastScan = now
             canvas.width = v.videoWidth
             canvas.height = v.videoHeight
@@ -202,6 +223,85 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
     const iv = setInterval(() => setCountdown((c) => (c <= 1 ? (clearInterval(iv), 0) : c - 1)), 1000)
     return () => clearInterval(iv)
   }, [view])
+
+  useEffect(() => {
+    if (!regCamOpen) {
+      regScanActiveRef.current = false
+      if (regStreamRef.current) { regStreamRef.current.getTracks().forEach((t) => t.stop()); regStreamRef.current = null }
+      return
+    }
+    regScanActiveRef.current = true
+    setRegCamFailed(false)
+    setRegScanError(null)
+
+    const startCamera = () => {
+      const rv = regVideoRef.current
+      if (!rv) { setRegCamFailed(true); setRegCamOpen(false); return }
+      const rvEl: HTMLVideoElement = rv
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then((stream) => {
+          if (!regScanActiveRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
+          regStreamRef.current = stream
+          rvEl.srcObject = stream
+          rvEl.setAttribute('autoplay', 'true')
+          rvEl.setAttribute('playsinline', 'true')
+          rvEl.setAttribute('muted', 'true')
+          rvEl.play().catch(() => {})
+
+          let gotFrames = false
+          const blackTimer = setTimeout(() => {
+            if (regScanActiveRef.current && !gotFrames) {
+              stream.getTracks().forEach((t) => t.stop())
+              regStreamRef.current = null
+              regScanActiveRef.current = false
+              setRegCamFailed(true)
+              setRegCamOpen(false)
+            }
+          }, 4500)
+
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')!
+          let lastReg = 0
+
+          function regFrame() {
+            if (!regScanActiveRef.current) { clearTimeout(blackTimer); return }
+            const now = Date.now()
+            if (now - lastReg > 250 && rvEl.readyState >= 2 && rvEl.videoWidth > 0) {
+              if (!gotFrames) { gotFrames = true; clearTimeout(blackTimer) }
+              lastReg = now
+              canvas.width = rvEl.videoWidth
+              canvas.height = rvEl.videoHeight
+              ctx.drawImage(rvEl, 0, 0)
+              const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
+              const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' })
+              if (code) {
+                const parsed = parseFediQr(code.data)
+                if (parsed.wallet_address) {
+                  regScanActiveRef.current = false
+                  stream.getTracks().forEach((t) => t.stop())
+                  regStreamRef.current = null
+                  setRegCamOpen(false)
+                  setRegDraft((d) => ({ ...d, wallet_address: parsed.wallet_address! }))
+                  return
+                }
+              }
+            }
+            requestAnimationFrame(regFrame)
+          }
+          requestAnimationFrame(regFrame)
+        })
+        .catch(() => { regScanActiveRef.current = false; setRegCamFailed(true); setRegCamOpen(false) })
+    }
+
+    const t = setTimeout(startCamera, 80)
+    return () => {
+      clearTimeout(t)
+      regScanActiveRef.current = false
+      if (regStreamRef.current) { regStreamRef.current.getTracks().forEach((t2) => t2.stop()); regStreamRef.current = null }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regCamOpen])
 
   async function handleScan(id: string, k: string) {
     try {
@@ -604,18 +704,43 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                   </div>
                   <div>
                     <div className="font-ui text-13 text-white/55 mb-2">Fedi Lightning address</div>
-                    <div className="flex gap-2">
-                      <input value={regDraft.wallet_address} onChange={(e) => setRegDraft({ ...regDraft, wallet_address: e.target.value })}
-                        placeholder="user@fedi.xyz"
-                        className="flex-1 h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
-                      <button onClick={() => regFileRef.current?.click()}
-                        className="h-12 px-4 rounded-glass font-ui text-13 flex items-center"
-                        style={{ background: 'rgba(255,181,71,0.12)', color: AMBER, border: `1px solid ${AMBER}30` }}>
-                        Scan QR
-                      </button>
-                    </div>
-                    <input ref={regFileRef} type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRegQrCapture(f); e.target.value = '' }} />
+                    {regCamOpen ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="relative w-full aspect-square rounded-card overflow-hidden bg-black">
+                          <video ref={regVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                          <div className="absolute inset-[20%] rounded-2xl" style={{ border: `2px solid ${AMBER}` }} />
+                        </div>
+                        <div className="font-ui text-12 text-white/50 text-center">Point at the collector's Fedi QR code</div>
+                        <button onClick={() => setRegCamOpen(false)}
+                          className="w-full h-10 rounded-pill font-ui text-13 text-white/50"
+                          style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input value={regDraft.wallet_address} onChange={(e) => setRegDraft({ ...regDraft, wallet_address: e.target.value })}
+                          placeholder="user@fedi.xyz"
+                          className="flex-1 h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
+                        <button onClick={() => setRegCamOpen(true)}
+                          className="h-12 px-4 rounded-glass font-ui text-13 flex items-center"
+                          style={{ background: 'rgba(255,181,71,0.12)', color: AMBER, border: `1px solid ${AMBER}30` }}>
+                          Scan QR
+                        </button>
+                      </div>
+                    )}
+                    {regCamFailed && (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <div className="font-ui text-12 text-white/40">Camera unavailable — upload a QR photo instead:</div>
+                        <input ref={regFileRef} type="file" accept="image/*" className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRegQrCapture(f); e.target.value = '' }} />
+                        <button onClick={() => regFileRef.current?.click()}
+                          className="h-10 px-4 rounded-pill font-ui text-13"
+                          style={{ background: 'rgba(255,181,71,0.12)', color: AMBER, border: `1px solid ${AMBER}30` }}>
+                          Upload QR image
+                        </button>
+                      </div>
+                    )}
                     {regScanError && <div className="font-ui text-12 mt-1" style={{ color: '#FF4D4D' }}>{regScanError}</div>}
                     <div className="font-ui text-12 text-white/35 mt-1">Scan the collector's Fedi profile QR to auto-fill</div>
                   </div>
