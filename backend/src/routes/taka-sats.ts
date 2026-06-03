@@ -63,13 +63,27 @@ function requireRole(role: 'collector' | 'supervisor') {
   };
 }
 
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
+function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const token = bearer(req);
-  if (!config.takaSats.adminToken || !token || !safeEqual(token, config.takaSats.adminToken)) {
-    res.status(401).json({ error: 'Admin authentication required' });
-    return;
+  // Accept static admin token
+  if (config.takaSats.adminToken && token && safeEqual(token, config.takaSats.adminToken)) {
+    next(); return;
   }
-  next();
+  // Accept supervisor JWT if supervisor has is_admin = TRUE
+  if (token) {
+    const id = verifyIdentity(token);
+    if (id?.role === 'supervisor') {
+      queryOne<{ is_admin: boolean }>(
+        `SELECT is_admin FROM taka_sats.supervisors WHERE id = $1 AND is_admin = TRUE AND active = TRUE`,
+        [id.id],
+      ).then((row) => {
+        if (row) { (req as Request & { takaId: string }).takaId = id.id; next(); }
+        else res.status(401).json({ error: 'Admin authentication required' });
+      }).catch(() => res.status(401).json({ error: 'Admin authentication required' }));
+      return;
+    }
+  }
+  res.status(401).json({ error: 'Admin authentication required' });
 }
 
 function qrUrl(displayId: string, qrSecret: string): string {
@@ -100,8 +114,8 @@ router.post('/auth/identify', async (req, res) => {
     const data = IdentifySchema.parse(req.body);
 
     if (data.member_key) {
-      const sup = await queryOne<{ id: string; display_name: string; assigned_points: string[] }>(
-        `SELECT id, display_name, assigned_points FROM taka_sats.supervisors
+      const sup = await queryOne<{ id: string; display_name: string; assigned_points: string[]; is_admin: boolean }>(
+        `SELECT id, display_name, assigned_points, is_admin FROM taka_sats.supervisors
          WHERE fedi_member_key = $1 AND active = TRUE`,
         [data.member_key],
       );
@@ -112,6 +126,7 @@ router.post('/auth/identify', async (req, res) => {
           supervisor_id: sup.id,
           display_name: sup.display_name,
           assigned_points: sup.assigned_points,
+          is_admin: sup.is_admin,
         });
         return;
       }
@@ -274,6 +289,25 @@ router.get('/leaderboard', async (req, res) => {
     [community],
   );
   res.json(rows);
+});
+
+/** GET /taka-sats/rates/current — public endpoint for UI currency display */
+router.get('/rates/current', async (_req, res) => {
+  try {
+    const [rateSnapshot, rateRows] = await Promise.all([
+      getCurrentRate(),
+      query<{ material_type: string; kes_per_kg: string }>(
+        `SELECT material_type, kes_per_kg FROM taka_sats.payout_rates
+         WHERE effective_to IS NULL ORDER BY material_type`,
+      ),
+    ]);
+    res.json({
+      kes_per_btc: rateSnapshot.kesPerBtc,
+      rates: rateRows.map((r) => ({ material_type: r.material_type, kes_per_kg: parseFloat(r.kes_per_kg) })),
+    });
+  } catch {
+    res.status(503).json({ error: 'Rate unavailable' });
+  }
 });
 
 // ─── Supervisor endpoints ────────────────────────────────────────────────────────

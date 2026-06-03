@@ -28,6 +28,18 @@ function parseCardData(text: string): { id: string; k: string } | null {
   return null
 }
 
+function parseFediQr(text: string): { wallet_address?: string } {
+  const t = text.trim()
+  if (t.toLowerCase().startsWith('lightning:')) return { wallet_address: t.slice(10) }
+  if (/^[a-zA-Z0-9_.+%-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(t)) return { wallet_address: t }
+  try {
+    const u = new URL(t)
+    const ln = u.searchParams.get('lightning') ?? u.searchParams.get('lnaddress')
+    if (ln) return { wallet_address: ln }
+  } catch { /* not a url */ }
+  return {}
+}
+
 export function SupervisorView({ token, onHome }: { token: string; onHome: () => void }) {
   const [view, setView] = useState<View>('home')
   const [me, setMe] = useState<{ display_name: string; assigned_points: string[] } | null>(null)
@@ -41,6 +53,9 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   const [countdown, setCountdown] = useState(0)
   const [today, setToday] = useState<{ collections: CollectionRow[]; total_weight_kg: number; total_sats: number } | null>(null)
   const [earnings, setEarnings] = useState<{ today_sats: number; week_sats: number; month_sats: number; all_time_sats: number } | null>(null)
+  const [currency, setCurrency] = useState<'KES' | 'USD'>(() => (localStorage.getItem('taka_currency') as 'KES' | 'USD') ?? 'KES')
+  const [rates, setRates] = useState<{ kes_per_btc: number; rates: { material_type: string; kes_per_kg: number }[] } | null>(null)
+  const [lastPaid, setLastPaid] = useState<{ kes_equivalent: number; kes_per_btc: number } | null>(null)
 
   const [cameraFailed, setCameraFailed] = useState(false)
   const [pasteInput, setPasteInput] = useState('')
@@ -49,9 +64,31 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
   const [regResult, setRegResult] = useState<{ display_id: string; qr_url: string } | null>(null)
   const [regError, setRegError] = useState<string | null>(null)
   const [regBusy, setRegBusy] = useState(false)
+  const [regScanError, setRegScanError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const regFileRef = useRef<HTMLInputElement | null>(null)
+
+  function toggleCurrency() {
+    const next = currency === 'KES' ? 'USD' : 'KES'
+    setCurrency(next)
+    localStorage.setItem('taka_currency', next)
+  }
+
+  function estimateKes(weightKg: number, materialType: string): number | null {
+    if (!rates || !weightKg) return null
+    const r = rates.rates.find((r) => r.material_type === materialType)
+    return r ? Math.round(weightKg * r.kes_per_kg) : null
+  }
+
+  function satToDisplay(sats: number, kesPerBtc?: number): string {
+    const kpb = kesPerBtc ?? rates?.kes_per_btc
+    if (!kpb) return `${sats.toLocaleString()} sats`
+    if (currency === 'KES') return `KES ${Math.round((sats / 1e8) * kpb).toLocaleString()}`
+    const usdPerKes = 1 / 129
+    return `$${((sats / 1e8) * kpb * usdPerKes).toFixed(2)}`
+  }
 
   function refreshBalance() {
     getWeblnBalanceSats().then((b) => { if (b !== null) setWalletBalance(b) }).catch(() => {})
@@ -74,6 +111,7 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
       setDraft((d) => ({ ...d, collection_point: m.assigned_points[0] ?? 'Collection Point' }))
     }).catch(() => {})
     if (isWeblnAvailable()) connectWallet()
+    takaApi.getRates().then(setRates).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -154,6 +192,24 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
     }
   }
 
+  async function handleRegQrCapture(file: File) {
+    setRegScanError(null)
+    try {
+      const url = URL.createObjectURL(file)
+      const reader = new BrowserQRCodeReader()
+      const result = await reader.decodeFromImageUrl(url)
+      URL.revokeObjectURL(url)
+      const parsed = parseFediQr(result.getText())
+      if (parsed.wallet_address) {
+        setRegDraft((d) => ({ ...d, wallet_address: parsed.wallet_address! }))
+      } else {
+        setRegScanError('Could not find a Lightning address in this QR. Please enter it manually.')
+      }
+    } catch {
+      setRegScanError('Could not read QR. Try a clearer photo or enter the address manually.')
+    }
+  }
+
   async function submitPayout() {
     if (!scanned) return
     setView('paying')
@@ -169,6 +225,9 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
       })
       collectionId = created.collection_id
       ref = created.collection_ref
+      if (created.kes_per_btc != null) {
+        setLastPaid({ kes_equivalent: created.kes_equivalent ?? 0, kes_per_btc: created.kes_per_btc })
+      }
       try {
         const { preimage } = await payLightningAddress(
           created.collector_wallet_address,
@@ -205,9 +264,16 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
             <div className="font-brand font-semibold text-20 text-white mt-1">{me?.display_name ?? '\u2014'}</div>
             <div className="font-ui text-12 text-white/45">{me?.assigned_points?.join(', ') || 'No points assigned'}</div>
           </div>
-          <button onClick={onHome} className="font-ui text-12 text-white/45 hover:text-white/70 flex items-center gap-1">
-            Personal wallet ↗
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            <button onClick={onHome} className="font-ui text-12 text-white/45 hover:text-white/70 flex items-center gap-1">
+              Personal wallet ↗
+            </button>
+            <button onClick={toggleCurrency}
+              className="font-mono text-11 px-2 py-0.5 rounded"
+              style={{ background: 'rgba(255,181,71,0.12)', color: AMBER, border: `1px solid ${AMBER}30` }}>
+              {currency}
+            </button>
+          </div>
         </div>
 
         <div className="glass rounded-glass px-4 py-3 mt-5 flex items-center justify-between" style={{ border: `1px solid ${balanceColor}40` }}>
@@ -215,8 +281,11 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
           {walletReady ? (
             <span className="flex items-center gap-2">
               <span className="font-mono text-15" style={{ color: AMBER }}>
-                {walletBalance !== null ? `${walletBalance.toLocaleString()} sats` : (walletAlias ?? 'Connected')}
+                {walletBalance !== null ? satToDisplay(walletBalance) : (walletAlias ?? 'Connected')}
               </span>
+              {walletBalance !== null && rates && (
+                <span className="font-ui text-11 text-white/35">{walletBalance.toLocaleString()} sats</span>
+              )}
               <span className="w-2 h-2 rounded-full" style={{ background: balanceColor }} />
               <span className="font-ui text-12" style={{ color: balanceColor }}>{lowBalance ? 'Low' : 'Ready'}</span>
             </span>
@@ -321,6 +390,16 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                 <input value={draft.weight_kg} onChange={(e) => setDraft({ ...draft, weight_kg: e.target.value.replace(/[^0-9.]/g, '') })}
                   inputMode="decimal" placeholder="0.0"
                   className="w-full h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-mono text-18 text-white outline-none" />
+                {(() => {
+                  const kg = parseFloat(draft.weight_kg)
+                  const kes = kg > 0 ? estimateKes(kg, draft.material_type) : null
+                  return kes != null && rates ? (
+                    <div className="font-ui text-13 mt-1.5" style={{ color: AMBER }}>
+                      ≈ KES {kes.toLocaleString()}
+                      <span className="text-white/40 ml-2">({Math.round((kes / rates.kes_per_btc) * 1e8).toLocaleString()} sats)</span>
+                    </div>
+                  ) : null
+                })()}
               </div>
               <div>
                 <div className="font-ui text-13 text-white/55 mb-2">Collection point</div>
@@ -350,6 +429,20 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                 <Row l="Weight" v={`${draft.weight_kg} kg`} />
                 <Row l="Point" v={draft.collection_point} />
               </div>
+              {(() => {
+                const kg = parseFloat(draft.weight_kg)
+                const kes = kg > 0 ? estimateKes(kg, draft.material_type) : null
+                return kes != null && rates ? (
+                  <div className="mt-3 py-3 px-4 rounded-glass text-center" style={{ background: 'rgba(255,181,71,0.08)', border: `1px solid ${AMBER}25` }}>
+                    <div className="font-brand font-semibold text-22" style={{ color: AMBER }}>
+                      ≈ KES {kes.toLocaleString()}
+                    </div>
+                    <div className="font-ui text-12 text-white/45 mt-0.5">
+                      {Math.round((kes / rates.kes_per_btc) * 1e8).toLocaleString()} sats estimated
+                    </div>
+                  </div>
+                ) : null
+              })()}
               <div className="font-ui text-13 text-white/50 mt-4 leading-relaxed">
                 Confirm to pay the collector directly from your Fedi wallet. Your 10% supervisor fee
                 is recorded and settled by Afribit separately.
@@ -381,9 +474,12 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                 <>
                   <div className="text-30" style={{ color: '#00C896' }}>✓</div>
                   <div className="font-brand font-semibold text-20 text-white mt-2">Paid</div>
-                  <div className="font-mono text-15 mt-3" style={{ color: AMBER }}>{(result.collector_sats ?? 0).toLocaleString()} sats</div>
+                  <div className="font-brand font-semibold text-28 mt-3" style={{ color: AMBER }}>
+                    {satToDisplay(result.collector_sats ?? 0, lastPaid?.kes_per_btc)}
+                  </div>
+                  <div className="font-mono text-13 text-white/45 mt-0.5">{(result.collector_sats ?? 0).toLocaleString()} sats</div>
                   <div className="font-ui text-12 text-white/45 mt-1">to {scanned?.name}</div>
-                  <div className="font-ui text-12 text-white/45 mt-1">Your fee: {(result.supervisor_sats ?? 0).toLocaleString()} sats</div>
+                  <div className="font-ui text-12 text-white/45 mt-1">Your fee: {satToDisplay(result.supervisor_sats ?? 0, lastPaid?.kes_per_btc)}</div>
                 </>
               ) : (
                 <>
@@ -455,10 +551,21 @@ export function SupervisorView({ token, onHome }: { token: string; onHome: () =>
                       className="w-full h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
                   </div>
                   <div>
-                    <div className="font-ui text-13 text-white/55 mb-2">Fedi wallet address (optional)</div>
-                    <input value={regDraft.wallet_address} onChange={(e) => setRegDraft({ ...regDraft, wallet_address: e.target.value })}
-                      placeholder="user@fedi.xyz"
-                      className="w-full h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
+                    <div className="font-ui text-13 text-white/55 mb-2">Fedi Lightning address</div>
+                    <div className="flex gap-2">
+                      <input value={regDraft.wallet_address} onChange={(e) => setRegDraft({ ...regDraft, wallet_address: e.target.value })}
+                        placeholder="user@fedi.xyz"
+                        className="flex-1 h-12 px-4 rounded-glass bg-white/5 border border-white/10 font-ui text-15 text-white outline-none" />
+                      <button onClick={() => regFileRef.current?.click()}
+                        className="h-12 px-4 rounded-glass font-ui text-13 flex items-center"
+                        style={{ background: 'rgba(255,181,71,0.12)', color: AMBER, border: `1px solid ${AMBER}30` }}>
+                        Scan QR
+                      </button>
+                    </div>
+                    <input ref={regFileRef} type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRegQrCapture(f); e.target.value = '' }} />
+                    {regScanError && <div className="font-ui text-12 mt-1" style={{ color: '#FF4D4D' }}>{regScanError}</div>}
+                    <div className="font-ui text-12 text-white/35 mt-1">Scan the collector's Fedi profile QR to auto-fill</div>
                   </div>
                   {regError && <div className="font-ui text-13 text-center" style={{ color: '#FF4D4D' }}>{regError}</div>}
                   <button disabled={!regDraft.name.trim() || regBusy} onClick={submitRegister}

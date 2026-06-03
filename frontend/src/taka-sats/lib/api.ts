@@ -14,6 +14,7 @@ export type IdentifyResult =
       supervisor_id: string
       display_name: string
       assigned_points: string[]
+      is_admin: boolean
     }
   | {
       role: 'collector'
@@ -136,6 +137,11 @@ export const takaApi = {
   supervisorRegisterCollector(token: string, payload: { name: string; wallet_address?: string; wallet_type?: string; notes?: string }) {
     return req<{ id: string; display_id: string; name: string; qr_url: string }>(
       '/supervisor/collectors', { method: 'POST', body: JSON.stringify(payload) }, token,
+    )
+  },
+  getRates() {
+    return req<{ kes_per_btc: number; rates: { material_type: string; kes_per_kg: number }[] }>(
+      '/rates/current',
     )
   },
 }

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { adminApi, ADMIN_TOKEN_KEY } from './adminApi'
+import { TAKA_TOKEN_KEY } from '../lib/api'
 import { Card, Btn, Field, Input, ErrorNote, COLORS } from './ui'
 import OverviewTab from './OverviewTab'
 import CollectionsTab from './CollectionsTab'
@@ -25,6 +26,18 @@ export default function AdminApp() {
   const [token, setToken] = useState<string>(() => localStorage.getItem(ADMIN_TOKEN_KEY) ?? '')
   const [authed, setAuthed] = useState(false)
   const [tab, setTab] = useState<TabId>('overview')
+
+  useEffect(() => {
+    if (authed) return
+    const supToken = localStorage.getItem(TAKA_TOKEN_KEY)
+    if (supToken) {
+      adminApi.overview(supToken).then(() => {
+        setToken(supToken)
+        setAuthed(true)
+      }).catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (!authed) return <Login token={token} setToken={setToken} onAuth={() => setAuthed(true)} />
 
